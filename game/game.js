@@ -1,38 +1,38 @@
-"use strict";
+"使用严格";
 {
 	/**
-	 * @typedef {InstanceType<typeof lib.element.Player>} Player
-	 * @typedef {InstanceType<typeof lib.element.Card>} Card
-	 * @typedef {InstanceType<typeof lib.element.VCard>} VCard
-	 * @typedef {InstanceType<typeof lib.element.GameEvent>} GameEvent
-	 * @typedef {InstanceType<typeof lib.element.NodeWS>} NodeWS
-	 */
-	const userAgent=navigator.userAgent.toLowerCase();
-	if(!localStorage.getItem('gplv3_noname_alerted')){
-		if(confirm('①无名杀是一款基于GPLv3协议的开源软件！\n你可以在遵守GPLv3协议的基础上任意使用，修改并转发《无名杀》，以及所有基于《无名杀》开发的拓展。\n点击“确定”即代表您认可并接受GPLv3协议↓️\nhttps://www.gnu.org/licenses/gpl-3.0.html\n②无名杀官方发布地址仅有GitHub仓库！\n其他所有的所谓“无名杀”社群（包括但不限于绝大多数“官方”QQ群、QQ频道等）均为玩家自发组织，与无名杀官方无关！')){
-			localStorage.setItem('gplv3_noname_alerted',true);
+*@typedef{InstanceType<typeof lib.element.Player>}播放器
+*@typedef{InstanceType<typeof lib.element.Card>}卡片
+*@typedef{InstanceType<typeof lib.element.VCard>}VCard
+*@typedef{InstanceType<typeof lib.element.GameEvent>}GameEvent
+*@typedef{InstanceType<typeof lib.element.NodeWS>}NodeWS
+*/
+	Const UserAgent=导航器。UserAgent.toLowerCase();
+	如果(！localStorage。getitem('gplv3_noname_alerted')){
+		如果(确认('1无名杀是一款基于GPLv3协议的开源软件！\n你可以在遵守GPLv3协议的基础上任意使用，修改并转发《无名杀》，以及所有基于《无名杀》开发的拓展.\n点击"确定"即代表您认可并接受GPLv3协议↓️\nhttps://www.gnu.org/licenses/gpl-3.0.html\n②无名杀官方发布地址仅有GitHub仓库！\n其他所有的所谓"无名杀"社群(包括但不限于绝大多数"官方"QQ群、QQ频道等)均为玩家自发组织，与无名杀官方无关！')){
+localStorage。setitem('gplv3_noname_alerted',正确);
 		}
-		else{
-			const ios=userAgent.includes('iphone')||userAgent.includes('ipad')||userAgent.includes('macintosh');
-			//electron
-			if(typeof window.process=='object'&&typeof window.require=='function'){
-				const versions=window.process.versions;
-				const electronVersion=parseFloat(versions.electron);
-				let remote;
-				if(electronVersion>=14){
-					remote=require('@electron/remote');
-				}else{
-					remote=require('electron').remote;
+		其他{
+			Const iOS=userAgent。包括('iPhone')||userAgent。包括('iPad')||userAgent。包括('麦金塔');
+			//电子
+			如果(typeof窗户。过程=='object'&&typeof窗户。需要=='功能'){
+				Const 版本=窗口。过程.版本;
+				Const 电子版本=parseFloat(版本。电子);
+				让 遥远的;
+				如果(电子版本>=14){
+遥远的=需要('@电子/远程');
+				}其他{
+遥远的=需要('电子').遥远的;
 				}
-				const thisWindow=remote.getCurrentWindow();
-				thisWindow.destroy();
-				window.process.exit();
+				Const thisWindow=远程。getCurrentWindow();
+这个窗口。破坏();
+窗户。过程.出口();
 			}
 			//android-cordova环境
 			//ios-cordova环境或ios浏览器环境
 			//非ios的网页版
-			else if(!ios){
-				window.close();
+			其他 如果(！iOS){
+窗户。关闭();
 			}
 		}
 	}
