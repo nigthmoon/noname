@@ -2,6 +2,7 @@ import { lib } from "../index.js";
 import { ui } from "../../ui/index.js";
 import { get } from "../../get/index.js";
 import { _status } from "../../status/index.js";
+import { game } from "../../game/index.js";
 
 /**
  * @type {(NonameAssemblyType["checkBegin"])}
@@ -55,6 +56,30 @@ export const checkTarget = {
 			}
 		});
 	},
+	addTargetPrompt(target, event) {
+		if (!event.targetprompt2?.length) {
+			return;
+		}
+		const str = event.targetprompt2
+			.map(func => func(target) || "")
+			.flat()
+			.filter(prompt => prompt.length)
+			.toUniqued()
+			.join("<br>");
+		let node;
+		if (target.node.prompt2) {
+			node = target.node.prompt2;
+			node.innerHTML = "";
+			node.className = "damage normal-font damageadded";
+		} else {
+			node = ui.create.div(".damage.normal-font", target);
+			target.node.prompt2 = node;
+			ui.refresh(node);
+			node.classList.add("damageadded");
+		}
+		node.innerHTML = str;
+		node.dataset.nature = "soil";
+	},
 };
 
 /**
@@ -94,6 +119,25 @@ export const checkEnd = {
 			}
 		}
 	},
+	createChooseAll(event, _) {
+		// 仅在chooseToUse里面生效喵
+		if (event.name === "chooseToUse" && event.isMine() && !(event.cardChooseAll instanceof lib.element.Control)) {
+			// 判断技能是否可以使用全选按钮喵
+			const skill = event.skill;
+			if (!skill || !get.info(skill)) {
+				return;
+			}
+			const info = get.info(skill);
+			if (!info.filterCard || !info.selectCard) {
+				return;
+			}
+			if (info.complexSelect || info.complexCard || info.noChooseAll) {
+				return;
+			}
+			// 调用函数创建全选按钮喵
+			ui.create.cardChooseAll();
+		}
+	},
 };
 
 /**
@@ -102,7 +146,19 @@ export const checkEnd = {
  * 要加接口去node_modules/@types/noname-typings/NonameAssemblyType.d.ts里把类型补了
  * 要加接口去node_modules/@types/noname-typings/NonameAssemblyType.d.ts里把类型补了
  */
-export const uncheckBegin = {};
+export const uncheckBegin = {
+	destroyChooseAll(event, _) {
+		// 仅在chooseToUse里面生效喵
+		if (event.name !== "chooseToUse") {
+			return;
+		}
+		// 清理全选按钮喵
+		if (event.cardChooseAll instanceof lib.element.Control) {
+			event.cardChooseAll.close();
+			delete event.cardChooseAll;
+		}
+	},
+};
 
 /**
  * @type {(NonameAssemblyType["uncheckCard"])}
@@ -139,6 +195,12 @@ export const uncheckTarget = {
 		target.instance.classList.remove("selected");
 		// @ts-expect-error ignore
 		target.instance.classList.remove("selectable");
+	},
+	removeTargetPrompt(target, event) {
+		if (target.node.prompt2) {
+			target.node.prompt2.remove();
+			delete target.node.prompt2;
+		}
 	},
 };
 

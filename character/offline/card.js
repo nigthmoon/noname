@@ -4,17 +4,13 @@ const cards = {
 	hschenzhi_poker: {
 		type: "poker",
 		fullskin: true,
+		noname: true,
 	},
 	chunqiubi: {
 		derivation: "chenshou",
 		cardcolor: "heart",
 		type: "equip",
 		subtype: "equip5",
-		// ai: {
-		// 	basic: {
-		// 		equipValue: 5,
-		// 	},
-		// },
 		skills: ["chunqiubi_skill"],
 		fullskin: true,
 		destroy: true,
@@ -59,22 +55,11 @@ const cards = {
 				target: (player, target, card) => get.equipResult(player, target, card),
 			},
 		},
-		enable: true,
-		selectTarget: -1,
-		filterTarget: (card, player, target) => player == target && target.canEquip(card, true),
-		modTarget: true,
-		allowMultiple: false,
-		content: function () {
-			if (
-				!card?.cards.some(card => {
-					return get.position(card, true) !== "o";
-				})
-			) {
-				target.equip(card);
+		onLose() {
+			if (player.getStat().skill.chunqiubi_skill) {
+				delete player.getStat().skill.chunqiubi_skill;
 			}
-			//if (cards.length && get.position(cards[0], true) == "o") target.equip(cards[0]);
 		},
-		toself: true,
 	},
 	sclc_wolong: {
 		type: "takaramono",

@@ -27,7 +27,7 @@ export default () => {
 			}
 			"step 1";
 			for (var i in lib.skill) {
-				if (lib.skill[i].seatRelated) {
+				if (lib.skill[i].seatRelated === true) {
 					lib.skill[i] = {};
 					if (lib.translate[i + "_info"]) {
 						lib.translate[i + "_info"] = "此模式下不可用";
@@ -1837,7 +1837,6 @@ export default () => {
 										game.players[i].classList.remove("acted");
 									}
 									game.log();
-									game.log("第" + game.roundNumber + "轮游戏结束了");
 									await event.trigger("roundEnd");
 								}
 							}
@@ -1875,7 +1874,6 @@ export default () => {
 												game.players[i].classList.remove("acted");
 											}
 											game.log();
-											game.log("第" + game.roundNumber + "轮游戏结束了");
 											await event.trigger("roundEnd");
 										}
 									}
@@ -2089,7 +2087,6 @@ export default () => {
 								}
 								if (isRoundEnd && _status.globalHistory.some(i => i.isRound)) {
 									game.log();
-									game.log("第" + game.roundNumber + "轮游戏结束了");
 									await event.trigger("roundEnd");
 								}
 							}

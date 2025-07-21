@@ -1,4 +1,11 @@
 const characters = {
+	tw_zhuzhi: {
+		sex: "male",
+		group: "wu",
+		hp: 4,
+		skills: ["twanguo"],
+		dieAudios: ["xin_zhuzhi"],
+	},
 	huan_dianwei: {
 		sex: "male",
 		group: "wei",

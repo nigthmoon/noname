@@ -1,4 +1,5 @@
 import { _status, game, get, lib, ui } from "../../../noname.js";
+import { Player } from "./index.js";
 import security from "../../util/security.js";
 import ContentCompiler from "./GameEvent/compilers/ContentCompiler.js";
 import GameEventManager from "./GameEvent/GameEventManager.js";
@@ -37,7 +38,7 @@ export class GameEvent {
 		return "GameEvent";
 	}
 	/**
-	 * @type { Result }
+	 * @type { Partial<Result> }
 	 */
 	result;
 	/**
@@ -207,6 +208,10 @@ export class GameEvent {
 	 * @type { boolean }
 	 */
 	includeOut;
+	/**
+	 * @type { Function[] }
+	 */
+	targetprompt2 = [];
 	/**
 	 * @param {keyof this} key
 	 * @param {number} [value]
@@ -802,7 +807,8 @@ export class GameEvent {
 		if (typeof skills == "string") {
 			skills = [skills];
 		}
-		game.expandSkills(skills);
+		//手动addTrigger请自己展开
+		//game.expandSkills(skills);
 		while (true) {
 			evt = evt.getParent("arrangeTrigger");
 			if (!evt || evt.name != "arrangeTrigger" || !evt.doingList) {
@@ -1237,7 +1243,7 @@ export class GameEvent {
 								},
 							})
 						);
-					}
+				  }
 				: onfulfilled,
 			onrejected
 		);
@@ -1419,7 +1425,7 @@ export class GameEvent {
 	 * @template {keyof Result} T
 	 * @this GameEvent
 	 * @overload
-	 * @returns {Promise<Result>}
+	 * @returns {Promise<Partial<Result>>}
 	 * 
 	 * @overload
 	 * @param {T} param0

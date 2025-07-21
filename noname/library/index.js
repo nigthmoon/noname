@@ -19,7 +19,7 @@ import { gnc } from "../gnc/index.js";
 import { LibInit } from "./init/index.js";
 import { Announce } from "./announce/index.js";
 import { Channel } from "./channel/index.js";
-import { Experimental } from "./experimental/index.js";
+import { experimental } from "./experimental/index.js";
 import * as Element from "./element/index.js";
 import { updateURLs } from "./update-urls.js";
 import { defaultHooks } from "./hooks/index.js";
@@ -30,6 +30,8 @@ import { Concurrent } from "./concurrent/index.js";
 
 import { defaultSplashs } from "../init/onload/index.js";
 import dedent from "../../game/dedent.js";
+
+const html = dedent;
 
 export class Library {
 	configprefix = "noname_0.9_";
@@ -185,6 +187,7 @@ export class Library {
 		biexiao_emotion: 18,
 		chaijun_emotion: 43,
 		maoshu_emotion: 18,
+		mobile_emotion: 15,
 	};
 	animate = {
 		skill: {},
@@ -196,7 +199,55 @@ export class Library {
 	/**
 	 * @type { Function[] | undefined }
 	 */
-	arenaReady = [];
+	arenaReady = [
+		//预处理技能拥有者
+		function () {
+			_status.skillOwner = {};
+			//武将包排序
+			let packSort = ["standard", "shenhua", "yijiang", "refresh", "extra", "sp", "xinghuoliaoyuan", "sp2", "mobile", "tw", "yingbian", "offline", "sb", "clan", "huicui", "shiji", "xianding", "jsrg", "onlyOL", "newjiang", "sixiang", "sxrm"];
+			packSort = packSort.reverse();
+			const packs = Object.keys(lib.characterPack).sort((a, b) => {
+				return packSort.indexOf(b) - packSort.indexOf(a);
+			});
+			const map = new Map();
+			for (let i of packs) {
+				for (let j in lib.characterPack[i]) {
+					const info = get.character(j);
+					if (!info || info[4]?.includes("unseen")) {
+						continue;
+					}
+					if (info[3]?.length > 0) {
+						let skills = info[3].slice(0);
+						for (const skill of skills) {
+							const skillInfo = lib.skill[skill];
+							if (!skillInfo) {
+								continue;
+							}
+							if (!_status.skillOwner[skill]) {
+								_status.skillOwner[skill] = j;
+							}
+							if (skillInfo.derivation) {
+								const der = skillInfo.derivation.slice(0);
+								for (const skillx of Array.isArray(der) ? der : [der]) {
+									if (!_status.skillOwner[skillx]) {
+										if (!map.has(skillx)) {
+											map.set(skillx, []);
+										}
+										map.get(skillx).add(j);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			for (const skill of map.keys()) {
+				if (!_status.skillOwner[skill]) {
+					_status.skillOwner[skill] = map.get(skill)[0];
+				}
+			}
+		},
+	];
 	onfree = [];
 	inpile = [];
 	inpile_nature = [];
@@ -1176,7 +1227,7 @@ export class Library {
 					},
 					onclick(item) {
 						game.saveConfig("max_loadtime", item);
-						if (item == "5000") {
+						if (item === "5000") {
 							localStorage.removeItem(lib.configprefix + "loadtime");
 						} else {
 							localStorage.setItem(lib.configprefix + "loadtime", item);
@@ -1251,6 +1302,26 @@ export class Library {
 					init: false,
 					async onclick(bool) {
 						await game.promises.saveConfig("extension_auto_import", bool);
+					},
+					unfrequent: true,
+				},
+				experimental_enable: {
+					name: "启用实验性功能",
+					init: false,
+					intro: html`
+						开启后将启用部分仍处于实验性质的功能，将改变无名杀现有的部分逻辑（重启后生效）
+						<br />
+						※ 实验性功能无法保证API稳定，如需使用请及时跟进本体进展
+						<br />
+						※ 以API为主的功能不提供具体实现，如需使用请自行实现
+						<br />
+						※ 部分功能将会作用于联机模式
+					`,
+					/**
+					 * @param {boolean} bool
+					 */
+					async onclick(bool) {
+						await game.promises.saveConfig("experimental_enable", bool);
 					},
 					unfrequent: true,
 				},
@@ -1686,7 +1757,7 @@ export class Library {
 				// },
 				player_height: {
 					name: "角色高度",
-					init: "long",
+					init: "default",
 					// unfrequent:true,
 					item: {
 						short: "矮",
@@ -2328,7 +2399,7 @@ export class Library {
 				},
 				hp_style: {
 					name: "体力条样式",
-					init: "ol",
+					init: "default",
 					item: {
 						default: "默认",
 						// official:'勾玉',
@@ -3292,7 +3363,7 @@ export class Library {
 				glow_phase: {
 					name: "当前回合角色高亮",
 					unfrequent: true,
-					init: "yellow",
+					init: "green",
 					intro: "设置当前回合角色的边框颜色",
 					item: {
 						none: "无",
@@ -3823,11 +3894,11 @@ export class Library {
 						map.show_time.show();
 						map.watchface.hide();
 					}
-					if (lib.config.show_deckMonitor) {
+					/*if (lib.config.show_deckMonitor) {
 						map.show_deckMonitor_online.show();
 					} else {
 						map.show_deckMonitor_online.hide();
-					}
+					}*/
 					if (lib.config.show_extensionmaker) {
 						map.show_extensionshare.show();
 					} else {
@@ -4210,7 +4281,7 @@ export class Library {
 				show_ban_menu: {
 					name: "显示禁将菜单",
 					intro: "在选项-武将中显示禁将一栏",
-					init: true,
+					init: false,
 					unfrequent: true,
 				},
 				right_range: {
@@ -4344,7 +4415,7 @@ export class Library {
 				},
 				show_cardpile_number: {
 					name: "显示剩余牌数",
-					init: false,
+					init: true,
 					unfrequent: true,
 					onclick(bool) {
 						game.saveConfig("show_cardpile_number", bool);
@@ -4402,7 +4473,7 @@ export class Library {
 						}
 					},
 				},
-				show_deckMonitor_online: {
+				/*show_deckMonitor_online: {
 					name: "联机显示记牌器",
 					intro: "如果你是房主，此设置对所有人生效",
 					init: false,
@@ -4419,7 +4490,7 @@ export class Library {
 							game.saveConfig("show_deckMonitor_online", bool);
 						}
 					},
-				},
+				},*/
 				show_wuxie: {
 					name: "显示无懈按钮",
 					intro: "在右上角显示不询问无懈",
@@ -4457,7 +4528,7 @@ export class Library {
 				show_characternamepinyin: {
 					name: "显示武将名注解",
 					intro: "在武将资料卡显示武将名及其注解、性别、势力、体力等信息",
-					init: "showPinyin",
+					init: "showCodeIdentifier",
 					unfrequent: true,
 					item: {
 						doNotShow: "不显示",
@@ -4808,6 +4879,47 @@ export class Library {
 					},
 					clear: true,
 				},
+				remove_extension_onfig: {
+					name: "重置无效扩展",
+					clear: true,
+					async onclick() {
+						if (this.firstChild.innerHTML != "已重置") {
+							let config = lib.config;
+							if (get.is.object(config)) {
+								let extensionList = config.extensions;
+								for (let name of extensionList) {
+									let num = await game.promises.checkDir(`extension/${name}`);
+									if (num !== 1) {
+										game.removeExtension(name);
+									} else {
+										let all = await game.promises.getFileList(`extension/${name}`);
+										if (all?.[1].length) {
+											const hasExtensionJs = all[1].includes("extension.js");
+											const hasInfoJson = all[1].includes("info.json");
+
+											if (!hasExtensionJs) {
+												const message = hasInfoJson ? `扩展${name}有 info.json 但缺少 extension.js 文件` : `扩展${name}缺少必须的 extension.js 文件`;
+												console.error(message);
+												game.removeExtension(name);
+											}
+										}
+									}
+								}
+							}
+							this.firstChild.innerHTML = "已重置";
+							const that = this;
+							setTimeout(function () {
+								that.firstChild.innerHTML = "重置无效扩展";
+								setTimeout(function () {
+									let ret = confirm(`检测完成，已为你清除无效配置，是否重启？`);
+									if (ret) {
+										game.reload();
+									}
+								});
+							}, 500);
+						}
+					},
+				},
 				redownload_game: {
 					name: "重新下载游戏",
 					onclick() {
@@ -5093,46 +5205,6 @@ export class Library {
 					} else {
 						this.firstChild.innerHTML = "隐藏此扩展";
 						lib.config.hiddenPlayPack.remove("boss");
-					}
-					game.saveConfig("hiddenPlayPack", lib.config.hiddenPlayPack);
-				},
-			},
-		},
-		wuxing: {
-			enable: {
-				name: "开启",
-				init: false,
-				restart: true,
-			},
-			intro: {
-				name: "每名角色和部分卡牌在游戏开始时随机获得一个属性",
-				clear: true,
-				nopointer: true,
-			},
-			num: {
-				name: "带属性卡牌",
-				init: "0.3",
-				item: {
-					0.1: "10%",
-					0.2: "20%",
-					0.3: "30%",
-					0.5: "50%",
-				},
-			},
-			hide: {
-				name: "隐藏此扩展",
-				clear: true,
-				onclick() {
-					if (this.firstChild.innerHTML == "隐藏此扩展") {
-						this.firstChild.innerHTML = "此扩展将在重启后隐藏";
-						lib.config.hiddenPlayPack.add("wuxing");
-						if (!lib.config.prompt_hidepack) {
-							alert("隐藏的扩展包可通过选项-其它-重置隐藏内容恢复");
-							game.saveConfig("prompt_hidepack", true);
-						}
-					} else {
-						this.firstChild.innerHTML = "隐藏此扩展";
-						lib.config.hiddenPlayPack.remove("wuxing");
 					}
 					game.saveConfig("hiddenPlayPack", lib.config.hiddenPlayPack);
 				},
@@ -5465,7 +5537,7 @@ export class Library {
 				},
 				connect_enhance_zhu: {
 					name: "加强主公",
-					init: "sixiang",
+					init: "off",
 					item: {
 						sixiang: "四象标记",
 						specific: "专属技能",
@@ -5757,16 +5829,16 @@ export class Library {
 				},
 				auto_mark_identity: {
 					name: "自动标记身份",
-					init: true,
+					init: false,
 					intro: "根据角色的出牌行为自动标记可能的身份",
 				},
 				enhance_zhu: {
 					name: "加强主公",
-					init: "sixiang",
+					init: "off",
 					item: {
+						off: "关闭",
 						sixiang: "四象标记",
 						specific: "专属技能",
-						off: "关闭",
 					},
 					restart: true,
 					intro: "为主公增加一个额外技能。<br><li>四象标记：主公随机获得一个四象标记（限发动一次）；每个回合结束时，若场上没有反贼，主公失去此标记。<br><li>专属技能：至少三名反贼的身份场，主公获得一个专属技能（无则改为〖天命〗）；一名角色阵亡后，若存活反贼数小于3，主公失去此技能。",
@@ -6135,6 +6207,12 @@ export class Library {
 					restart: true,
 					intro: "若开启此选项，玩家的第一个回合开始时，若其主武将牌有对应的君主武将牌，则其可以将此武将牌替换为对应的君主武将牌，然后重新调整体力上限。若玩家的体力上限因此增大，则玩家回复等量的体力。",
 				},
+				connect_jinEx: {
+					name: "文德武备",
+					init: true,
+					restart: true,
+					intro: "若开启此选项，晋势力武将将使用OL【文德武备】版本；否则使用线下【紫气东来】【受命于天】版本。",
+				},
 				connect_change_card: {
 					name: "启用手气卡",
 					init: false,
@@ -6229,6 +6307,7 @@ export class Library {
 					name: "鏖战背景音乐",
 					item: {
 						disabled: "不启用",
+						shousha: "逐鹿天下",
 						online: "Online",
 						rewrite: "Rewrite",
 						chaoming: "潮鸣",
@@ -6278,6 +6357,12 @@ export class Library {
 					// frequent:true,
 					restart: true,
 					intro: "若开启此选项，玩家的第一个回合开始时，若其主武将牌有对应的君主武将牌，则其可以将此武将牌替换为对应的君主武将牌，然后重新调整体力上限。若玩家的体力上限因此增大，则玩家回复等量的体力。",
+				},
+				jinEx: {
+					name: "文德武备",
+					init: true,
+					restart: true,
+					intro: "若开启此选项，晋势力武将将使用OL【文德武备】版本；否则使用线下【紫气东来】【受命于天】版本。",
 				},
 				double_hp: {
 					name: "双将体力上限",
@@ -6594,7 +6679,7 @@ export class Library {
 				},
 				versus_mode: {
 					name: "游戏模式",
-					init: "four",
+					init: "two",
 					item: {
 						four: "对抗",
 						three: "统率",
@@ -6825,7 +6910,7 @@ export class Library {
 							alert("请进入对决模式，然后再编辑将池");
 							return;
 						}
-						var container = ui.create.div(".popup-container.editor");
+						var container = ui.create.div(".popup-container.editor2", ui.window);
 						var node = container;
 						var map = get.config("character_three") || lib.choiceThree;
 						var str = "character=[\n    ";
@@ -6836,16 +6921,10 @@ export class Library {
 							}
 						}
 						str += "\n];";
-						node.code = str;
 						ui.window.classList.add("shortcutpaused");
 						ui.window.classList.add("systempaused");
-						var saveInput = function () {
-							var code;
-							if (container.editor) {
-								code = container.editor.getValue();
-							} else if (container.textarea) {
-								code = container.textarea.value;
-							}
+						var saveInput = function (/**@type {import("@codemirror/view").EditorView}*/view) {
+							var code = view.state.doc.toString();
 							try {
 								var { character } = security.exec2(code);
 								if (!Array.isArray(character)) {
@@ -6855,44 +6934,22 @@ export class Library {
 								var tip = lib.getErrorTip(e) || "";
 								alert("代码语法有错误，请仔细检查（" + e + "）" + tip);
 								window.focus();
-								if (container.editor) {
-									container.editor.focus();
-								} else if (container.textarea) {
-									container.textarea.focus();
-								}
+								view.dom.focus();
 								return;
 							}
 							game.saveConfig("character_three", character, "versus");
 							ui.window.classList.remove("shortcutpaused");
 							ui.window.classList.remove("systempaused");
 							container.delete();
-							container.code = code;
 							delete window.saveNonameInput;
 						};
-						window.saveNonameInput = saveInput;
-						var editor = ui.create.editor(container, saveInput);
-						if (node.aced) {
-							ui.window.appendChild(node);
-							node.editor.setValue(node.code, 1);
-						} else if (lib.device == "ios") {
-							ui.window.appendChild(node);
-							if (!node.textarea) {
-								var textarea = document.createElement("textarea");
-								editor.appendChild(textarea);
-								node.textarea = textarea;
-								lib.setScroll(textarea);
-							}
-							node.textarea.value = node.code;
-						} else {
-							if (!window.CodeMirror) {
-								import("../../game/codemirror.js").then(() => {
-									lib.codeMirrorReady(node, editor);
-								});
-								lib.init.css(lib.assetURL + "layout/default", "codemirror");
-							} else {
-								lib.codeMirrorReady(node, editor);
-							}
-						}
+						ui.create.editor2(container, {
+							language: "javascript",
+							value: str,
+							saveInput,
+						}).then(editor => {
+							window.saveNonameInput = () => saveInput(editor);
+						});
 					},
 				},
 				reset_character_three: {
@@ -6914,7 +6971,7 @@ export class Library {
 							alert("请进入对决模式，然后再编辑将池");
 							return;
 						}
-						var container = ui.create.div(".popup-container.editor");
+						var container = ui.create.div(".popup-container.editor2", ui.window);
 						var node = container;
 						var map = get.config("character_four") || lib.choiceFour;
 						var str = "character=[\n    ";
@@ -6925,16 +6982,10 @@ export class Library {
 							}
 						}
 						str += "\n];";
-						node.code = str;
 						ui.window.classList.add("shortcutpaused");
 						ui.window.classList.add("systempaused");
-						var saveInput = function () {
-							var code;
-							if (container.editor) {
-								code = container.editor.getValue();
-							} else if (container.textarea) {
-								code = container.textarea.value;
-							}
+						var saveInput = function (/**@type {import("@codemirror/view").EditorView}*/view) {
+							var code = view.state.doc.toString();
 							try {
 								var { character } = security.exec2(code);
 								if (!Array.isArray(character)) {
@@ -6944,44 +6995,22 @@ export class Library {
 								var tip = lib.getErrorTip(e) || "";
 								alert("代码语法有错误，请仔细检查（" + e + "）" + tip);
 								window.focus();
-								if (container.editor) {
-									container.editor.focus();
-								} else if (container.textarea) {
-									container.textarea.focus();
-								}
+								view.dom.focus();
 								return;
 							}
 							game.saveConfig("character_four", character, "versus");
 							ui.window.classList.remove("shortcutpaused");
 							ui.window.classList.remove("systempaused");
 							container.delete();
-							container.code = code;
 							delete window.saveNonameInput;
 						};
-						window.saveNonameInput = saveInput;
-						var editor = ui.create.editor(container, saveInput);
-						if (node.aced) {
-							ui.window.appendChild(node);
-							node.editor.setValue(node.code, 1);
-						} else if (lib.device == "ios") {
-							ui.window.appendChild(node);
-							if (!node.textarea) {
-								var textarea = document.createElement("textarea");
-								editor.appendChild(textarea);
-								node.textarea = textarea;
-								lib.setScroll(textarea);
-							}
-							node.textarea.value = node.code;
-						} else {
-							if (!window.CodeMirror) {
-								import("../../game/codemirror.js").then(() => {
-									lib.codeMirrorReady(node, editor);
-								});
-								lib.init.css(lib.assetURL + "layout/default", "codemirror");
-							} else {
-								lib.codeMirrorReady(node, editor);
-							}
-						}
+						ui.create.editor2(container, {
+							language: "javascript",
+							value: str,
+							saveInput,
+						}).then(editor => {
+							window.saveNonameInput = () => saveInput(editor);
+						});;
 					},
 				},
 				reset_character_four: {
@@ -7042,18 +7071,23 @@ export class Library {
 				wss_mode: {
 					name: "使用WSS协议",
 					init: false,
-					frequent: true,
 					intro: "在用户填写的IP地址没有直接指定使用WS/WSS协议的情况下，默认使用WSS协议，而非WS协议来连接到联机服务器。<br>请不要轻易勾选此项！",
+					onclick(bool) {
+						if (bool && !confirm("此为开发者选项，开启后将无法直接联机。您确定要开启WSS模式吗？")) {
+							return;
+						}
+						game.saveConfig("wss_mode", bool, "connect");
+					},
 				},
 				read_clipboard: {
 					name: "读取邀请链接",
-					init: false,
+					init: true,
 					frequent: true,
 					intro: "读取剪贴板以解析邀请链接自动加入联机房间",
 				},
 				check_versionLocal: {
 					name: "禁止不同版本玩家进房",
-					init: false,
+					init: true,
 					intro: "禁止与自己版本不同的玩家进入房间",
 				},
 				check_extension: {
@@ -7072,6 +7106,23 @@ export class Library {
 							setTimeout(function () {
 								that.firstChild.innerHTML = "重置黑名单";
 							}, 1000);
+						}
+					},
+					clear: true,
+				},
+				reset_grantedServers: {
+					name: "重置受信任的服务器列表",
+					onclick() {
+						if (this.firstChild.innerHTML != "已重置") {
+							this.firstChild.innerHTML = "已重置";
+							security.resetGrantedServers();
+							setTimeout(() => {
+								if (confirm("是否重置游戏让改变的列表生效?")) {
+									game.reload();
+									return;
+								}
+								this.firstChild.innerHTML = "重置受信任的服务器列表";
+							}, 0);
 						}
 					},
 					clear: true,
@@ -7142,10 +7193,23 @@ export class Library {
 					} else {
 						map.connect_change_card.show();
 					}
-					if (config.connect_doudizhu_mode != "normal") {
+					if (config.connect_doudizhu_mode !== "normal") {
 						map.connect_double_character.hide();
+						if (config.connect_doudizhu_mode !== "kaihei") {
+							map.connect_choice_zhu.hide();
+							map.connect_choice_fan.hide();
+						} else {
+							map.connect_choice_zhu.show();
+							map.connect_choice_fan.show();
+						}
+						map.connect_enhance_dizhu.hide();
+						map.connect_feiyang_version.hide();
 					} else {
 						map.connect_double_character.show();
+						map.connect_choice_zhu.show();
+						map.connect_choice_fan.show();
+						map.connect_enhance_dizhu.show();
+						map.connect_feiyang_version.show();
 					}
 				},
 				connect_doudizhu_mode: {
@@ -7167,11 +7231,65 @@ export class Library {
 					frequent: true,
 					restart: true,
 				},
+				connect_choice_zhu: {
+					name: "地主候选武将数",
+					init: 5,
+					input: true,
+					restart: true,
+					onblur(e) {
+						let text = e.target,
+							num = Number(text.innerText);
+						if (isNaN(num) || num < 2) {
+							num = 5;
+						} else if (!Number.isInteger(num)) {
+							num = Math.round(num);
+						}
+						text.innerText = num;
+						game.saveConfig("connect_choice_zhu", num, "doudizhu");
+					},
+				},
+				connect_choice_fan: {
+					name: "农民候选武将数",
+					init: 3,
+					input: true,
+					restart: true,
+					onblur(e) {
+						let text = e.target,
+							num = Number(text.innerText);
+						if (isNaN(num) || num < 2) {
+							num = 3;
+						} else if (!Number.isInteger(num)) {
+							num = Math.round(num);
+						}
+						text.innerText = num;
+						game.saveConfig("connect_choice_fan", num, "doudizhu");
+					},
+				},
 				connect_change_card: {
 					name: "启用手气卡",
 					init: false,
 					frequent: true,
 					restart: true,
+				},
+				connect_enhance_dizhu: {
+					name: "加强地主",
+					init: "disabled",
+					restart: true,
+					item: {
+						disabled: "禁用",
+						kaihei: "获得〖强易〗",
+						yinfu: "获得〖殷富〗",
+					},
+				},
+				connect_feiyang_version: {
+					name: "〖飞扬〗版本",
+					init: "online",
+					restart: true,
+					item: {
+						online: "OL版本",
+						mobile: "手杀版本",
+						decade: "十周年版本",
+					},
 				},
 			},
 			config: {
@@ -7185,26 +7303,35 @@ export class Library {
 						map.edit_character.hide();
 						map.reset_character.hide();
 					}
-					if (config.doudizhu_mode != "normal") {
+					if (config.doudizhu_mode !== "normal") {
+						if (config.doudizhu_mode === "kaihei") {
+							map.choice_zhu.show();
+							map.choice_fan.show();
+						} else {
+							map.choice_zhu.hide();
+							map.choice_fan.hide();
+						}
 						map.double_character.hide();
 						map.free_choose.hide();
 						map.change_identity.hide();
 						map.change_choice.hide();
 						map.continue_game.hide();
 						map.dierestart.hide();
-						map.choice_zhu.hide();
-						map.choice_fan.hide();
 						map.revive.hide();
+						map.enhance_dizhu.hide();
+						map.feiyang_version.hide();
 					} else {
 						map.double_character.show();
+						map.choice_zhu.show();
+						map.choice_fan.show();
 						map.free_choose.show();
 						map.change_identity.show();
 						map.change_choice.show();
 						map.continue_game.show();
 						map.dierestart.show();
-						map.choice_zhu.show();
-						map.choice_fan.show();
 						map.revive.show();
+						map.enhance_dizhu.show();
+						map.feiyang_version.show();
 					}
 					if (config.double_character && config.doudizhu_mode == "normal") {
 						map.double_hp.show();
@@ -7242,6 +7369,40 @@ export class Library {
 						zonghe: "相加",
 					},
 					restart: true,
+				},
+				choice_zhu: {
+					name: "地主候选武将数",
+					init: 5,
+					input: true,
+					restart: true,
+					onblur(e) {
+						let text = e.target,
+							num = Number(text.innerText);
+						if (isNaN(num) || num < 2) {
+							num = 5;
+						} else if (!Number.isInteger(num)) {
+							num = Math.round(num);
+						}
+						text.innerText = num;
+						game.saveConfig("choice_zhu", num, "doudizhu");
+					},
+				},
+				choice_fan: {
+					name: "农民候选武将数",
+					init: 3,
+					input: true,
+					restart: true,
+					onblur(e) {
+						let text = e.target,
+							num = Number(text.innerText);
+						if (isNaN(num) || num < 2) {
+							num = 3;
+						} else if (!Number.isInteger(num)) {
+							num = Math.round(num);
+						}
+						text.innerText = num;
+						game.saveConfig("choice_fan", num, "doudizhu");
+					},
 				},
 				free_choose: {
 					name: "自由选将",
@@ -7355,30 +7516,24 @@ export class Library {
 						}
 					},
 				},
-				choice_zhu: {
-					name: "地主候选武将数",
-					init: "3",
+				enhance_dizhu: {
+					name: "加强地主",
+					init: "disabled",
 					restart: true,
 					item: {
-						3: "三",
-						4: "四",
-						5: "五",
-						6: "六",
-						8: "八",
-						10: "十",
+						disabled: "禁用",
+						kaihei: "获得〖强易〗",
+						yinfu: "获得〖殷富〗",
 					},
 				},
-				choice_fan: {
-					name: "农民候选武将数",
-					init: "3",
+				feiyang_version: {
+					name: "〖飞扬〗版本",
+					init: "online",
 					restart: true,
 					item: {
-						3: "三",
-						4: "四",
-						5: "五",
-						6: "六",
-						8: "八",
-						10: "十",
+						online: "OL版本",
+						mobile: "手杀版本",
+						decade: "十周年版本",
 					},
 				},
 				edit_character: {
@@ -7389,19 +7544,14 @@ export class Library {
 							alert("请进入斗地主模式，然后再编辑将池");
 							return;
 						}
-						var container = ui.create.div(".popup-container.editor");
+						var container = ui.create.div(".popup-container.editor2", ui.window);
 						var node = container;
 						var map = get.config("character_online") || lib.characterOnline;
-						node.code = "character=" + get.stringify(map) + "\n/*\n    这里是智斗三国模式的武将将池。\n    您可以在这里编辑对武将将池进行编辑，然后点击“保存”按钮即可保存。\n    将池中的Key势力武将，仅同时在没有被禁用的情况下，才会出现在选将框中。\n    而非Key势力的武将，只要所在的武将包没有被隐藏，即可出现在选将框中。\n    该将池为单机模式/联机模式通用将池。在这里编辑后，即使进入联机模式，也依然会生效。\n    但联机模式本身禁用的武将（如神貂蝉）不会出现在联机模式的选将框中。\n*/";
+						var code = "character=" + get.stringify(map) + "\n/*\n    这里是智斗三国模式的武将将池。\n    您可以在这里编辑对武将将池进行编辑，然后点击“保存”按钮即可保存。\n    将池中的Key势力武将，仅同时在没有被禁用的情况下，才会出现在选将框中。\n    而非Key势力的武将，只要所在的武将包没有被隐藏，即可出现在选将框中。\n    该将池为单机模式/联机模式通用将池。在这里编辑后，即使进入联机模式，也依然会生效。\n    但联机模式本身禁用的武将（如神貂蝉）不会出现在联机模式的选将框中。\n*/";
 						ui.window.classList.add("shortcutpaused");
 						ui.window.classList.add("systempaused");
-						var saveInput = function () {
-							var code;
-							if (container.editor) {
-								code = container.editor.getValue();
-							} else if (container.textarea) {
-								code = container.textarea.value;
-							}
+						var saveInput = function (/**@type {import("@codemirror/view").EditorView}*/view) {
+							var code = view.state.doc.toString();
 							try {
 								var { character } = security.exec2(code);
 								if (!get.is.object(character)) {
@@ -7431,44 +7581,22 @@ export class Library {
 									alert("代码语法有错误，请仔细检查（" + e + "）" + tip);
 								}
 								window.focus();
-								if (container.editor) {
-									container.editor.focus();
-								} else if (container.textarea) {
-									container.textarea.focus();
-								}
+								view.dom.focus();
 								return;
 							}
 							game.saveConfig("character_online", character, "doudizhu");
 							ui.window.classList.remove("shortcutpaused");
 							ui.window.classList.remove("systempaused");
 							container.delete();
-							container.code = code;
 							delete window.saveNonameInput;
 						};
-						window.saveNonameInput = saveInput;
-						var editor = ui.create.editor(container, saveInput);
-						if (node.aced) {
-							ui.window.appendChild(node);
-							node.editor.setValue(node.code, 1);
-						} else if (lib.device == "ios") {
-							ui.window.appendChild(node);
-							if (!node.textarea) {
-								var textarea = document.createElement("textarea");
-								editor.appendChild(textarea);
-								node.textarea = textarea;
-								lib.setScroll(textarea);
-							}
-							node.textarea.value = node.code;
-						} else {
-							if (!window.CodeMirror) {
-								import("../../game/codemirror.js").then(() => {
-									lib.codeMirrorReady(node, editor);
-								});
-								lib.init.css(lib.assetURL + "layout/default", "codemirror");
-							} else {
-								lib.codeMirrorReady(node, editor);
-							}
-						}
+						ui.create.editor2(container, {
+							language: "javascript",
+							value: code,
+							saveInput,
+						}).then(editor => {
+							window.saveNonameInput = () => saveInput(editor);
+						});;
 					},
 				},
 				reset_character: {
@@ -10133,6 +10261,7 @@ export class Library {
 		wu: "吴",
 		qun: "群",
 		shen: "神",
+		devil: "魔",
 		western: "西",
 		key: "键",
 		jin: "晋",
@@ -10143,6 +10272,7 @@ export class Library {
 		wu2: "吴国",
 		qun2: "群雄",
 		shen2: "神明",
+		devil2: "入魔",
 		western2: "西方",
 		key2: "KEY",
 		jin2: "晋朝",
@@ -10167,6 +10297,7 @@ export class Library {
 		westernColor: "#ffe14c",
 		jinColor: "#ffe14c",
 		keyColor: "#c9b1fd",
+		devilColor: "#9b2234",
 		basic: "基本",
 		equip: "装备",
 		trick: "锦囊",
@@ -10202,6 +10333,7 @@ export class Library {
 		fengyin: "封印",
 		baiban: "白板",
 		_disableJudge: "判定区",
+		_rest_return: "休整",
 
 		xiaowu_emotion: "小无表情",
 		wanglang_emotion: "王朗表情",
@@ -10216,6 +10348,7 @@ export class Library {
 		chaijun_emotion: "柴郡表情",
 		huangdou_emotion: "黄豆表情",
 		maoshu_emotion: "猫鼠表情",
+		mobile_emotion: "手杀表情",
 
 		pause: "暂停",
 		config: "选项",
@@ -10317,7 +10450,7 @@ export class Library {
 		identity_mingcha_info: "游戏开始时，你可以查看一名角色的身份是否为反贼（对所有玩家可见）。",
 	};
 
-	experimental = Experimental;
+	experimental = experimental;
 
 	element = {
 		content: Element.Content,
@@ -10896,11 +11029,8 @@ export class Library {
 				return true;
 			}
 			if (info[4]) {
-				if (info.isBoss) {
-					return true;
-				}
-				if (info.isHiddenBoss) {
-					return true;
+				if (info.isBoss || info.isHiddenBoss) {
+					return !lib.config?.plays?.includes("boss");
 				}
 				if (info.isMinskin) {
 					return true;
@@ -11023,14 +11153,14 @@ export class Library {
 				return player.countUsed(card) < num;
 			}
 		},
-		cardUsable: function (card, player, event) {
+		cardUsable(card, player, event) {
 			card = get.autoViewAs(card);
 			var info = get.info(card);
 			event = event || _status.event;
 			if (event.type == "chooseToUse_button") {
 				event = event.getParent();
 			}
-			if (player != _status.event.player) {
+			if (player != event.player) {
 				return true;
 			}
 			if (info.updateUsable == "phaseUse") {
@@ -11054,9 +11184,9 @@ export class Library {
 				return true;
 			}
 			if (
-				game.hasPlayer(function (current) {
+				game.hasPlayer2(function (current) {
 					return game.checkMod(card, player, current, false, "cardUsableTarget", player);
-				})
+				}, true)
 			) {
 				return true;
 			}
@@ -11124,7 +11254,7 @@ export class Library {
 			}
 			return _status.event._aiexclude.includes(card) == false;
 		},
-		filterCard: function (card, player, event) {
+		filterCard(card, player, event) {
 			var info = get.info(card);
 			//if(info.toself&&!lib.filter.targetEnabled(card,player,player)) return false;
 			if (player == undefined) {
@@ -11155,15 +11285,19 @@ export class Library {
 				return true;
 			}
 			var filterTarget = event && event.filterTarget ? event.filterTarget : lib.filter.filterTarget;
-			return game.hasPlayer(function (current) {
+			return game.hasPlayer2(function (current) {
 				return filterTarget(card, player, current);
-			});
+			}, true);
 		},
-		targetEnabledx: function (card, player, target) {
-			if (!card) {
+		targetEnabledx(card, player, target) {
+			if (!card || !target || target.removed) {
 				return false;
 			}
-			if (!target || !target.isIn()) {
+			const info = get.info(card);
+			if (!info?.deadTarget && target.isDead()) {
+				return false;
+			}
+			if (!info?.includeOut && target.isOut()) {
 				return false;
 			}
 			let event = _status.event,
@@ -11179,27 +11313,29 @@ export class Library {
 					return false;
 				}
 			}
-			var info = get.info(card);
 			if (info.singleCard && info.filterAddedTarget && ui.selected.targets.length) {
 				return Boolean(info.filterAddedTarget(card, player, target, ui.selected.targets[ui.selected.targets.length - 1]));
 			}
 			return lib.filter.targetEnabled.apply(this, arguments);
 		},
-		targetEnabled: function (card, player, target) {
-			if (!card) {
+		targetEnabled(card, player, target) {
+			if (!card || !target || target.removed) {
 				return false;
 			}
-			if (!target || !target.isIn()) {
+			const info = get.info(card);
+			if (!info?.deadTarget && target.isDead()) {
 				return false;
 			}
-			var info = get.info(card);
-			var filter = info.filterTarget;
+			if (!info?.includeOut && target.isOut()) {
+				return false;
+			}
+			const filter = info.filterTarget;
 			if (!info.singleCard || ui.selected.targets.length == 0) {
-				var mod = game.checkMod(card, player, target, "unchanged", "playerEnabled", player);
+				let mod = game.checkMod(card, player, target, "unchanged", "playerEnabled", player);
 				if (mod != "unchanged") {
 					return mod;
 				}
-				var mod = game.checkMod(card, player, target, "unchanged", "targetEnabled", target);
+				mod = game.checkMod(card, player, target, "unchanged", "targetEnabled", target);
 				if (mod != "unchanged") {
 					return mod;
 				}
@@ -11211,11 +11347,15 @@ export class Library {
 				return Boolean(filter(card, player, target));
 			}
 		},
-		targetEnabled2: function (card, player, target) {
-			if (!card) {
+		targetEnabled2(card, player, target) {
+			if (!card || !target || target.removed) {
 				return false;
 			}
-			if (!target || !target.isIn()) {
+			const info = get.info(card);
+			if (!info?.deadTarget && target.isDead()) {
+				return false;
+			}
+			if (!info?.includeOut && target.isOut()) {
 				return false;
 			}
 			if (lib.filter.targetEnabled(card, player, target)) {
@@ -11229,7 +11369,7 @@ export class Library {
 				return false;
 			}
 
-			var filter = get.info(card).modTarget;
+			const filter = get.info(card).modTarget;
 			if (typeof filter == "boolean") {
 				return filter;
 			}
@@ -11238,14 +11378,17 @@ export class Library {
 			}
 			return false;
 		},
-		targetEnabled3: function (card, player, target) {
-			if (!card) {
+		targetEnabled3(card, player, target) {
+			if (!card || !target || target.removed) {
 				return false;
 			}
-			if (!target || !target.isIn()) {
+			const info = get.info(card);
+			if (!info?.deadTarget && target.isDead()) {
 				return false;
 			}
-			var info = get.info(card);
+			if (!info?.includeOut && target.isOut()) {
+				return false;
+			}
 
 			if (info.filterTarget == true) {
 				return true;
@@ -11439,8 +11582,11 @@ export class Library {
 				if (group == "shen") {
 					return base + 7;
 				}
-				if (group == "double") {
+				if (group == "devil") {
 					return base + 7;
+				}
+				if (group == "double") {
+					return base + 8;
 				}
 				return base + 9;
 			};
@@ -11457,7 +11603,7 @@ export class Library {
 					base = 9;
 				}
 				const group = info[1];
-				if (group == "shen") {
+				if (group == "shen" || group == "devil") {
 					return base - 1;
 				}
 				if (group == "wei") {
@@ -11750,17 +11896,7 @@ export class Library {
 								}
 								const storage = player.storage,
 									zhibi = storage.zhibi;
-								return (
-									((zhibi && !zhibi.includes(current)) || get.effect(current, card, player, player) >= 2 - Math.max(0, (storage.stratagem_fury || 0) - 1)) &&
-									current.mayHaveShan(
-										player,
-										"use",
-										current.getCards("h", i => {
-											return i.hasGaintag("sha_notshan");
-										})
-									) &&
-									player.hasSkill("jiu")
-								);
+								return ((zhibi && !zhibi.includes(current)) || get.effect(current, card, player, player) >= 2 - Math.max(0, (storage.stratagem_fury || 0) - 1)) && current.mayHaveShan(player, "use") && player.hasSkill("jiu");
 							})
 						) {
 							return 1;
@@ -11870,16 +12006,7 @@ export class Library {
 										}
 										const storage = player.storage,
 											zhibi = storage.zhibi;
-										return (
-											((zhibi && !zhibi.includes(current)) || get.effect(current, card, player, player) >= 2 - Math.max(0, (storage.stratagem_fury || 0) - 1)) &&
-											current.mayHaveShan(
-												player,
-												"use",
-												current.getCards("h", i => {
-													return i.hasGaintag("sha_notshan");
-												})
-											)
-										);
+										return ((zhibi && !zhibi.includes(current)) || get.effect(current, card, player, player) >= 2 - Math.max(0, (storage.stratagem_fury || 0) - 1)) && current.mayHaveShan(player, "use");
 									})
 								) {
 									return get.order(card, player) + 0.5;
@@ -13276,6 +13403,48 @@ export class Library {
 				}
 			},
 		},
+		//休整
+		_rest_return: {
+			trigger: { global: "phaseBefore" },
+			forced: true,
+			charlotte: true,
+			silent: true,
+			forceDie: true,
+			forceOut: true,
+			filter(event, player) {
+				const map = _status._rest_return?.[player.playerid];
+				if (map?.count < 0) {
+					return false;
+				}
+				if (map?.type == "round" && event.player != player) {
+					return false;
+				}
+				return !event._rest_return && player.isOut();
+			},
+			async content(event, trigger, player) {
+				const map = _status._rest_return?.[player.playerid];
+				if (map?.count > 0) {
+					game.broadcastAll(map => {
+						map.count--;
+					}, map);
+				}
+				trigger._rest_return = true;
+				if (!map.count) {
+					//trigger._rest_return = true;
+					game.broadcastAll(function (player) {
+						player.classList.remove("out");
+					}, player);
+					game.log(player, "移回了游戏");
+					delete _status._rest_return[player.playerid];
+					await player.recoverTo(player.maxHp);
+					//生成restEnd时机
+					const next = game.createEvent("restEnd", false);
+					next.setContent("emptyEvent");
+					next.player = player;
+					await next;
+				}
+			},
+		},
 		/**
 		 * @deprecated
 		 */
@@ -13481,7 +13650,7 @@ export class Library {
 			 */
 			init(version, config, banned_info) {
 				var show_deckMonitor = false;
-				if (lib.config.show_deckMonitor && lib.config.show_deckMonitor_online) {
+				if (lib.config.show_deckMonitor) {// && lib.config.show_deckMonitor_online
 					show_deckMonitor = true;
 				}
 				this.send(function (show_deckMonitor) {
@@ -15018,6 +15187,13 @@ export class Library {
 			},
 		],
 		[
+			"疑",
+			{
+				color: "#5a6968",
+				nature: "graymm",
+			},
+		],
+		[
 			"用间",
 			{
 				color: "#c3f9ff",
@@ -15058,28 +15234,28 @@ export class Library {
 			"旧",
 			{
 				color: "#a4a4a4",
-				nature: "black",
+				nature: "blackmm",
 			},
 		],
 		[
 			"旧界",
 			{
 				color: "#a4a4a4",
-				nature: "black",
+				nature: "blackmm",
 			},
 		],
 		[
 			"节钺",
 			{
 				color: "#a4a4a4",
-				nature: "black",
+				nature: "blackmm",
 			},
 		],
 		[
 			"毅重",
 			{
 				color: "#a4a4a4",
-				nature: "black",
+				nature: "blackmm",
 			},
 		],
 		[
@@ -15267,6 +15443,23 @@ export class Library {
 				 * @returns {string}
 				 */
 				getSpan: () => `${get.prefixSpan("长安")}${get.prefixSpan("神")}`,
+			},
+		],
+		[
+			"渭南",
+			{
+				showName: "渭",
+				color: "#2a17d5",
+				nature: "shenmm",
+			},
+		],
+		[
+			"渭南神",
+			{
+				/**
+				 * @returns {string}
+				 */
+				getSpan: () => `${get.prefixSpan("渭南")}${get.prefixSpan("神")}`,
 			},
 		],
 		[
@@ -15507,7 +15700,7 @@ export class Library {
 			"牢",
 			{
 				color: "#EEEE00",
-				nature: "black",
+				nature: "blackmm",
 			},
 		],
 		[
@@ -15523,7 +15716,7 @@ export class Library {
 			"友",
 			{
 				color: "#AAABFF",
-				nature: "black",
+				nature: "blackmm",
 			},
 		],
 		[
@@ -15531,7 +15724,7 @@ export class Library {
 			{
 				showName: "鼎",
 				color: "#ffccff",
-				nature: "black",
+				nature: "blackmm",
 			},
 		],
 		[
@@ -15546,7 +15739,7 @@ export class Library {
 			"忠",
 			{
 				color: "#ffd700",
-				nature: "metal",
+				nature: "metalmm",
 			},
 		],
 		[
@@ -15561,7 +15754,7 @@ export class Library {
 			{
 				showName: "幽",
 				color: "#ff6a6a",
-				nature: "red",
+				nature: "redmm",
 			},
 		],
 		[
@@ -15614,7 +15807,7 @@ export class Library {
 			"魔",
 			{
 				color: "#2e002e",
-				nature: "fire",
+				nature: "firemm",
 			},
 		],
 		[
@@ -15639,6 +15832,20 @@ export class Library {
 				},
 			},
 		],
+		[
+			"忍",
+			{
+				color: "#180a29",
+				nature: "thundermm",
+			},
+		],
+		[
+			"狂",
+			{
+				color: "#8B00FF",
+				nature: "firemm",
+			},
+		],
 	]);
 	groupnature = {
 		shen: "shen",
@@ -15650,6 +15857,7 @@ export class Library {
 		key: "key",
 		jin: "thunder",
 		ye: "thunder",
+		devil: "devil",
 	};
 	lineColor = new Map([
 		["fire", [255, 146, 68]],
@@ -15664,6 +15872,7 @@ export class Library {
 		["brown", [195, 161, 223]],
 		["legend", [233, 131, 255]],
 	]);
+	selectGroup = ["shen", "western", "devil"];
 	phaseName = ["phaseZhunbei", "phaseJudge", "phaseDraw", "phaseUse", "phaseDiscard", "phaseJieshu"];
 	quickVoice = ["我从未见过如此厚颜无耻之人！", "这波不亏", "请收下我的膝盖", "你咋不上天呢", "放开我的队友，冲我来", "你随便杀，闪不了算我输", "见证奇迹的时刻到了", "能不能快一点啊，兵贵神速啊", "主公，别开枪，自己人", "小内再不跳，后面还怎么玩儿啊", "你们忍心，就这么让我酱油了？", "我，我惹你们了吗", "姑娘，你真是条汉子", "三十六计，走为上，容我去去便回", "人心散了，队伍不好带啊", "昏君，昏君啊！", "风吹鸡蛋壳，牌去人安乐", "小内啊，您老悠着点儿", "不好意思，刚才卡了", "你可以打得再烂一点吗", "哥们，给力点儿行嘛", "哥哥，交个朋友吧", "妹子，交个朋友吧"];
 	other = {

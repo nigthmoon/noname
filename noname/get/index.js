@@ -14,6 +14,11 @@ import { CodeSnippet, ErrorManager } from "../util/error.js";
 
 import { GetCompatible } from "./compatible.js";
 
+// 用于标识Map、Set等对象在序列化中的类型
+// 使用了md5("__noname_type")的值作为键
+// 尽可能减少碰撞喵（应该不会碰撞的吧）
+const TYPE_KEY = "a60e024487f63a67c634d782aaaf1127";
+
 export class Get extends GetCompatible {
 	is = new Is();
 	promises = new Promises();
@@ -21,9 +26,10 @@ export class Get extends GetCompatible {
 	/**
 	 * 获取牌的牌面信息
 	 * @param { Card | VCard | CardBaseUIData } node
+	 * @param { Player } player
 	 * @returns { string }
 	 */
-	cardDescription(node) {
+	cardDescription(node, player) {
 		let str = "",
 			name = node.name;
 		if (lib.translate[name + "_info"]) {
@@ -51,7 +57,7 @@ export class Get extends GetCompatible {
 			}
 		}
 		if (lib.card[name].cardPrompt) {
-			str += "" + lib.card[name].cardPrompt(node) + "|";
+			str += "" + lib.card[name].cardPrompt(node, player) + "|";
 		} else if (lib.translate[name + "_info"]) {
 			str += "" + lib.translate[name + "_info"] + "|";
 		}
@@ -1547,6 +1553,7 @@ export class Get extends GetCompatible {
 				continue;
 			}
 			if ((type.startsWith("equip") && type.length == 6) || (type.startsWith("hslingjian") && type.length == 11) || type.startsWith("spell_")) {
+				// hslingjian 是『轩辕剑』里面的
 				if (get.subtype(i) == type) {
 					list.push(i);
 				}
@@ -1670,12 +1677,17 @@ export class Get extends GetCompatible {
 			return get.cnNumber(parseInt(config.number)) + "人" + get.translation(get.plainText(config.mode));
 		}
 	}
+	/**
+	 * 获取联机可用武将列表
+	 * @param { (name: string) => boolean } [func] 自定义筛选方法，符合条件的排除
+	 * @returns { string[] }
+	 */
 	charactersOL(func) {
-		var list = [];
-		var libCharacter = {};
-		for (var i = 0; i < lib.configOL.characterPack.length; i++) {
-			var pack = lib.characterPack[lib.configOL.characterPack[i]];
-			for (var j in pack) {
+		let list = [];
+		let libCharacter = {};
+		for (let i = 0; i < lib.configOL.characterPack.length; i++) {
+			const pack = lib.characterPack[lib.configOL.characterPack[i]];
+			for (let j in pack) {
 				if (typeof func == "function" && func(j)) {
 					continue;
 				}
@@ -1687,7 +1699,7 @@ export class Get extends GetCompatible {
 				}
 			}
 		}
-		for (i in libCharacter) {
+		for (let i in libCharacter) {
 			if (lib.filter.characterDisabled(i, libCharacter)) {
 				continue;
 			}
@@ -2533,6 +2545,75 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 	infoVCardsOL(infos) {
 		return Array.from(infos || []).map(get.infoVCardOL);
 	}
+	/**
+	 * @param {Map} map 要序列化的Map
+	 * @param {number} [level] 最大的序列化嵌套层级
+	 * @param {false | null} [nomore] 传递false取消内部事件的序列化
+	 */
+	mapInfoOL(map, level, nomore) {
+		const info = {};
+
+		for (const [key, value] of map.entries()) {
+			Array.prototype.push.call(info, [
+				get.stringifiedResult(key, level, nomore),
+				get.stringifiedResult(value, level, nomore),
+			]);
+		}
+
+		info[TYPE_KEY] = "map";
+		return info;
+	}
+	/**
+	 * @param {Set} set 要序列化的Set
+	 * @param {number} [level] 最大的序列化嵌套层级
+	 * @param {false | null} [nomore] 传递false取消内部事件的序列化
+	 */
+	setInfoOL(set, level, nomore) {
+		const info = {};
+
+		for (const value of set) {
+			Array.prototype.push.call(info,
+				get.stringifiedResult(value, level, nomore));
+		}
+
+		info[TYPE_KEY] = "set";
+		return info;
+	}
+	infoMapOL(item) {
+		const map = new Map();
+
+		for (const index in item) {
+			if (!isFinite(Number(index))) {
+				break;
+			}
+
+			const pair = item[index];
+
+			if (!Array.isArray(pair) || pair.length !== 2) {
+				continue;
+			}
+
+			map.set(
+				get.parsedResult(pair[0]),
+				get.parsedResult(pair[1])
+			);
+		}
+
+		return map;
+	}
+	infoSetOL(item) {
+		const set = new Set();
+
+		for (const index in item) {
+			if (!isFinite(Number(index))) {
+				break;
+			}
+
+			set.add(get.parsedResult(item[index]));
+		}
+
+		return set;
+	}
 	stringifiedResult(item, level, nomore) {
 		if (!item) {
 			return item;
@@ -2566,22 +2647,33 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 						if (level == 0) {
 							return [];
 						}
-						var item2 = [];
-						for (var i = 0; i < item.length; i++) {
-							item2.push(get.stringifiedResult(item[i], level - 1, nomore));
+						const result = [];
+						for (let i = 0; i < item.length; i++) {
+							result.push(get.stringifiedResult(item[i], level - 1, nomore));
 						}
-						return item2;
-					} else if (Object.prototype.toString.call(item) == "[object Object]") {
+						return result;
+					} else {
 						if (level == 0) {
 							return {};
 						}
-						var item2 = {};
-						for (var i in item) {
-							item2[i] = get.stringifiedResult(item[i], level - 1, nomore);
+
+						const type = Object.prototype.toString.call(item).slice(8, -1);
+
+						switch(type) {
+							case "Map":
+								return get.mapInfoOL(item, level - 1, nomore);
+							case "Set":
+								return get.setInfoOL(item, level - 1, nomore);
+							case "Object": {
+								const result = {};
+								for (const i in item) {
+									result[i] = get.stringifiedResult(item[i], level - 1, nomore);
+								}
+								return result;
+							}
+							default:
+								return {};
 						}
-						return item2;
-					} else {
-						return {};
 					}
 			}
 		} else if (item === Infinity) {
@@ -2611,17 +2703,25 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 				return item;
 			}
 		} else if (Array.isArray(item)) {
-			var item2 = [];
-			for (var i = 0; i < item.length; i++) {
-				item2.push(get.parsedResult(item[i]));
+			const result = [];
+			for (let i = 0; i < item.length; i++) {
+				result.push(get.parsedResult(item[i]));
 			}
-			return item2;
+			return result;
 		} else if (typeof item == "object") {
-			var item2 = {};
-			for (var i in item) {
-				item2[i] = get.parsedResult(item[i]);
+			if (TYPE_KEY in item) {
+				switch (item[TYPE_KEY]) {
+					case "map":
+						return get.infoMapOL(item);
+					case "set":
+						return get.infoSetOL(item);
+				}
 			}
-			return item2;
+			const result = {};
+			for (const i in item) {
+				result[i] = get.parsedResult(item[i]);
+			}
+			return result;
 		} else {
 			return item;
 		}
@@ -2646,46 +2746,55 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 		}
 		return num.toString();
 	}
-	rawName(str) {
+	rawName(str, noab = false) {
 		let str2 = lib.translate[str];
-		if (lib.translate[str + "_ab"]) {
+		if (noab !== true && lib.translate[str + "_ab"]) {
 			str2 = lib.translate[str + "_ab"];
 		}
-		if (!str2) {
-			return "";
+		if (str2) {
+			if (lib.translate[str + "_prefix"]) {
+				let prefixList = lib.translate[str + "_prefix"].split("|");
+				while (prefixList.length) {
+					const prefix = prefixList.shift();
+					if (str2.startsWith(prefix)) {
+						str2 = str2.slice(prefix.length);
+						continue;
+					}
+					break;
+				}
+			}
+			return str2;
 		}
-		if (lib.translate[str + "_prefix"] && str2.startsWith(lib.translate[str + "_prefix"])) {
-			return str2.slice(lib.translate[str + "_prefix"].length);
-		}
-		return str2;
+		return "";
 	}
 	/**
 	 * 作用修改：只读前缀 不读_ab
 	 */
 	rawName2(str) {
-		let str2 = lib.translate[str];
-		if (!str2) {
-			return "";
-		}
-		if (lib.translate[str + "_prefix"] && str2.startsWith(lib.translate[str + "_prefix"])) {
-			return str2.slice(lib.translate[str + "_prefix"].length);
-		}
-		return str2;
+		return get.rawName(str, true);
 	}
 	slimNameHorizontal(str) {
-		const slimName = lib.translate[`${str}_ab`] || lib.translate[str];
-		if (!slimName) {
-			return "";
-		}
-		const prefix = lib.translate[`${str}_prefix`];
-		if (prefix && slimName.startsWith(prefix)) {
-			//兼容版特化处理
-			if (lib.compatibleEdition) {
-				return `${get.prefixSpan(prefix, str)}<span>${slimName.slice(prefix.length)}　</span>`;
+		let slimName = lib.translate[`${str}_ab`] || lib.translate[str];
+		if (slimName) {
+			if (lib.translate[`${str}_prefix`]) {
+				let prefixList = lib.translate[str + "_prefix"].split("|");
+				let setPrefix = [];
+				while (prefixList.length) {
+					const prefix = prefixList.shift();
+					if (slimName.startsWith(prefix)) {
+						setPrefix.push(prefix);
+						slimName = slimName.slice(prefix.length);
+						continue;
+					}
+					break;
+				}
+				if (setPrefix.length) {
+					return `${setPrefix.map(prefix => get.prefixSpan(prefix, str), "").join("")}<span>${slimName}</span>`;
+				}
 			}
-			return `${get.prefixSpan(prefix, str)}<span>${slimName.slice(prefix.length)}</span>`;
+			return slimName;
 		}
-		return slimName;
+		return "";
 	}
 	/**
 	 * @param {string} prefix
@@ -4015,7 +4124,7 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 	selectableTargets(sort) {
 		var selectable = [];
 		var players = game.players.slice(0);
-		if (_status.event.deadTarget || (_status.event.skill && get.info(_status.event.skill)?.deadTarget)) {
+		if (_status.event.deadTarget || (_status.event.skill && get.info(_status.event.skill)?.deadTarget) || (get.card() && get.info(get.card())?.deadTarget)) {
 			players.addArray(game.dead);
 		}
 		for (var i = 0; i < players.length; i++) {
@@ -4311,7 +4420,7 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 	 * @param { function | string | object | true } name 牌的筛选条件或名字，true为任意一张牌
 	 * @param { string | boolean } [position] 筛选区域，默认牌堆+弃牌堆：
 	 *
-	 * cardPile: 仅牌堆；discardPile: 仅弃牌堆；filed: 牌堆+弃牌堆+场上
+	 * cardPile: 仅牌堆；discardPile: 仅弃牌堆；field: 牌堆+弃牌堆+场上
 	 *
 	 * 若为true且name为string | object类型，则在筛选区域内没有找到卡牌时创建一张name条件的牌
 	 *
@@ -4883,38 +4992,22 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 				}
 			}
 			if (!simple || get.is.phoneLayout()) {
-				var es = node.getVCards("e");
+				var es = node.getCards("e");
 				for (var i = 0; i < es.length; i++) {
-					let name = es[i].name;
-					if (es[i]?.cards?.length == 1 && es[i].cards[0].name != name) {
-						name = es[i].cards[0].name;
-					}
-					let carde = game.createCard(name, es[i].suit, es[i].number, es[i].nature);
-					if (name != es[i].name) {
-						ui.create.cardTempName(es[i], carde);
-					}
-					let html = carde.outerHTML;
-					const special = [carde].concat(es[i].cards || []).find(j => j.name == es[i].name && lib.card[j.name]?.cardPrompt);
+					const special = [es[i]].concat(es[i].cards || []).find(j => j.name == es[i].name && lib.card[j.name]?.cardPrompt);
 					var str = special ? lib.card[special.name].cardPrompt(special, node) : lib.translate[es[i].name + "_info"];
-					uiintro.add('<div><div class="skill">' + html + "</div><div>" + str + "</div></div>");
+					uiintro.add('<div><div class="skill">' + es[i].outerHTML + "</div><div>" + str + "</div></div>");
 					uiintro.content.lastChild.querySelector(".skill>.card").style.transform = "";
 
 					if (lib.translate[es[i].name + "_append"]) {
 						uiintro.add('<div class="text">' + lib.translate[es[i].name + "_append"] + "</div>");
 					}
 				}
-				var js = node.getVCards("j");
+				var js = node.getCards("j");
 				for (var i = 0; i < js.length; i++) {
-					let name = js[i].name;
-					if (js[i]?.cards?.length == 1 && js[i].cards[0].name != name) {
-						name = js[i].cards[0].name;
-					}
-					let cardj = game.createCard(name, js[i].suit, js[i].number, js[i].nature);
-					if (name != js[i].name) {
-						ui.create.cardTempName(js[i], cardj);
-					}
-					let html = cardj.outerHTML;
-					if (js[i].viewAs && js[i].viewAs != js[i].name) {
+					const Vcard = js[i][js[i].cardSymbol];
+					if (js[i].viewAs && Vcard.cards.length == 1 && js[i].viewAs != Vcard.cards[0].name) {
+						let html = Vcard.cards[0].outerHTML;
 						let cardInfo = lib.card[js[i].viewAs],
 							showCardIntro = true;
 						if (cardInfo.blankCard) {
@@ -4926,9 +5019,9 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 						if (!showCardIntro) {
 							html = ui.create.button(js[i], "blank").outerHTML;
 						}
-						uiintro.add('<div><div class="skill">' + html + "</div><div>" + lib.translate[js[i].viewAs] + "：" + lib.translate[js[i].viewAs + "_info"] + "</div></div>");
+						uiintro.add(`<div><div class="skill">${html}</div><div>${lib.translate[js[i].viewAs]}：${lib.card[js[i].viewAs]?.cardPrompt?.(js[i], node) || lib.translate[`${js[i].viewAs}_info`]}</div></div>`);
 					} else {
-						uiintro.add('<div><div class="skill">' + html + "</div><div>" + lib.translate[js[i].name + "_info"] + "</div></div>");
+						uiintro.add(`<div><div class="skill">${js[i].outerHTML}</div><div>${lib.translate[js[i].name]}：${lib.card[js[i].name]?.cardPrompt?.(js[i], node) || lib.translate[`${js[i].name}_info`]}</div></div>`);
 					}
 					uiintro.content.lastChild.querySelector(".skill>.card").style.transform = "";
 				}
@@ -5228,7 +5321,8 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 			if (ui.arena.classList.contains("observe") && node.parentNode.classList.contains("handcards")) {
 				return;
 			}
-			var name = node.name;
+			var name = node.name,
+				Vcard = node[node.cardSymbol] || false;
 			if (node.parentNode.cardMod) {
 				var moded = false;
 				for (var i in node.parentNode.cardMod) {
@@ -5247,7 +5341,7 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 				name = node.link.name;
 			}
 			var cardPosition = get.position(node);
-			if ((cardPosition === "e" || cardPosition === "j") && node.viewAs && node.viewAs != name) {
+			if (((cardPosition === "e" || cardPosition === "j") && node.viewAs && node.viewAs != name) || (Vcard && (Vcard.cards.length != 1 || Vcard.cards[0].name != name))) {
 				uiintro.add(get.translation(node.viewAs));
 				var cardInfo = lib.card[node.viewAs],
 					showCardIntro = true;
@@ -5258,9 +5352,9 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 					}
 				}
 				if (cardOwner) {
-					var sourceVCard = cardOwner.getVCards(cardPosition).find(card => card.cards?.includes(node));
+					var sourceVCard = Vcard;
 					if (showCardIntro && sourceVCard) {
-						uiintro.add('<div class="text center">（' + get.translation(get.translation(sourceVCard.cards)) + "）</div>");
+						uiintro.add('<div class="text center">（' + (sourceVCard?.cards?.length ? get.translation(get.translation(sourceVCard.cards)) : "这是一张虚拟牌") + "）</div>");
 					}
 				}
 				// uiintro.add(get.translation(node.viewAs)+'<br><div class="text center" style="padding-top:5px;">（'+get.translation(node)+'）</div>');
@@ -6258,7 +6352,7 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 		game.expandSkills(skills1);
 		var zerotarget = false,
 			zeroplayer = false;
-		for (var i = 0; i < skills1.length; i++) {
+		for (let i = 0; i < skills1.length; i++) {
 			const info = get.info(skills1[i]);
 			if (!info) {
 				throw new Error(`${skills1[i]}不存在的技能`);
@@ -6294,7 +6388,7 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 		if (target) {
 			var skills2 = target.getSkills().concat(lib.skill.global);
 			game.expandSkills(skills2);
-			for (var i = 0; i < skills2.length; i++) {
+			for (let i = 0; i < skills2.length; i++) {
 				const info = get.info(skills2[i]);
 				if (!info) {
 					throw new Error(`${skills2[i]}不存在的技能`);
@@ -6416,6 +6510,9 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 		} else {
 			result2 += temp02;
 			result1 += temp01;
+			if (typeof card === "object" && !get.info(card)?.notarget) {
+				console.warn("计算get.effect_use(", target, card, player, player2, isLink, ")时缺少target参数");
+			}
 		}
 		if (zeroplayer) {
 			result1 = 0;
@@ -6429,7 +6526,7 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 		} else {
 			final = result1 * cache.get.attitude(player, player) + (target ? result2 * cache.get.attitude(player, target) : 0);
 		}
-		if (!isLink && get.tag(card, "natureDamage") && !zerotarget) {
+		if (!isLink && target && !zerotarget && get.tag(card, "natureDamage")) {
 			var info = get.info(card);
 			if (!info || !info.ai || !info.ai.canLink) {
 				if (target.isLinked()) {
@@ -6643,6 +6740,9 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 		} else {
 			result2 += temp02;
 			result1 += temp01;
+			if (typeof card === "object" && !get.info(card)?.notarget) {
+				console.warn("计算get.effect(", target, card, player, player2, isLink, ")时缺少target参数");
+			}
 		}
 		if (zeroplayer) {
 			result1 = 0;
@@ -6656,7 +6756,7 @@ else if (entry[1] !== void 0) stringifying[key] = JSON.stringify(entry[1]);*/
 		} else {
 			final = result1 * cache.get.attitude(player, player) + (target ? result2 * cache.get.attitude(player, target) : 0);
 		}
-		if (!isLink && get.tag(card, "natureDamage") && !zerotarget) {
+		if (!isLink && target && !zerotarget && get.tag(card, "natureDamage")) {
 			var info = get.info(card);
 			if (!info || !info.ai || !info.ai.canLink) {
 				if (target.isLinked()) {

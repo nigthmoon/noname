@@ -567,6 +567,7 @@ const skills = {
 		group: "olkongsheng_kessoku",
 		subSkill: {
 			kessoku: {
+				audio: "kongsheng",
 				trigger: { player: "phaseJieshuBegin" },
 				forced: true,
 				locked: false,
@@ -1839,6 +1840,7 @@ const skills = {
 		group: ["liangyin_1", "liangyin_2"],
 		subSkill: {
 			1: {
+				audio: "liangyin",
 				trigger: {
 					global: ["loseAfter", "addToExpansionAfter", "cardsGotoSpecialAfter", "loseAsyncAfter"],
 				},
@@ -1866,6 +1868,7 @@ const skills = {
 				},
 			},
 			2: {
+				audio: "liangyin",
 				trigger: {
 					global: "gainAfter",
 				},
@@ -2420,7 +2423,7 @@ const skills = {
 		ai: {
 			effect: {
 				player(card, player, target) {
-					if (get.tag(card, "damage") && !player.inRangeOf(target)) {
+					if (target && get.tag(card, "damage") && !player.inRangeOf(target)) {
 						return "zeroplayertarget";
 					}
 				},
@@ -3675,12 +3678,13 @@ const skills = {
 			next.set("ai", function () {
 				return _status.event.getParent().choice;
 			});
+			next.set("logSkill", event.skill);
 			next.setHiddenSkill(event.skill);
 			const control = await next.forResultControl();
 			if (control == "cancel2") {
 				return;
 			}
-			event.result = { bool: true }; // 好像在content里面不能中断getIndex喵
+			event.result = { bool: true, skill_popup: false }; // 好像在content里面不能中断getIndex喵
 		},
 		async content(event, trigger, player) {},
 	},
@@ -3698,6 +3702,28 @@ const skills = {
 					}
 				}
 			},
+		},
+		targetprompt2: target => {
+			const player = get.player(),
+				card = get.card(),
+				list = [];
+			if (card?.name != "sha" || !target.classList.contains("selectable")) {
+				return list;
+			}
+			const num = card.cards?.length ?? 0;
+			if (target.countCards("h") <= (player.countCards("h") - num)) {
+				list.add("不可响应");
+			}
+			if (target.hp >= player.hp) {
+				list.add("加伤");
+			}
+			return list;
+		},
+		onChooseToUse(event) {
+			event.targetprompt2.add(lib.skill.xinliegong.targetprompt2);
+		},
+		onChooseTarget(event) {
+			event.targetprompt2.add(lib.skill.xinliegong.targetprompt2);
 		},
 		audio: "liegong",
 		audioname: ["re_huangzhong", "ol_huangzhong"],
@@ -3773,6 +3799,7 @@ const skills = {
 				}, "挑衅：对" + get.translation(player) + "使用一张杀，或令其弃置你的一张牌")
 				.set("targetRequired", true)
 				.set("complexSelect", true)
+				.set("complexTarget", true)
 				.set("filterTarget", function (card, player, target) {
 					if (target != _status.event.sourcex && !ui.selected.targets.includes(_status.event.sourcex)) {
 						return false;
@@ -4189,7 +4216,7 @@ const skills = {
 				mod: {
 					globalFrom(from, to, distance) {
 						let num = distance - from.getExpansions("tuntian").length;
-						if (_status.event.skill == "jixi_backup" || _status.event.skill == "gzjixi_backup") {
+						if (_status.event.skill == "jixi_backup" || _status.event.skill == "gz_jixi_backup") {
 							num++;
 						}
 						return num;
@@ -4200,17 +4227,7 @@ const skills = {
 		ai: {
 			effect: {
 				target(card, player, target, current) {
-					if (
-						typeof card === "object" &&
-						get.name(card) === "sha" &&
-						target.mayHaveShan(
-							player,
-							"use",
-							target.getCards("h", i => {
-								return i.hasGaintag("sha_notshan");
-							})
-						)
-					) {
+					if (typeof card === "object" && get.name(card) === "sha" && target.mayHaveShan(player, "use")) {
 						return [0.6, 0.75];
 					}
 					if (!target.hasFriend() && !player.hasUnknown()) {
@@ -4310,7 +4327,7 @@ const skills = {
 					audioname: ["re_dengai", "gz_dengai", "ol_dengai"],
 					selectCard: -1,
 					position: "x",
-					filterCard: skill == "jixi" ? card => card == lib.skill.jixi_backup.card : card => card == lib.skill.gzjixi_backup.card,
+					filterCard: skill == "jixi" ? card => card == lib.skill.jixi_backup.card : card => card == lib.skill.gz_jixi_backup.card,
 					viewAs: { name: "shunshou" },
 					card: links[0],
 				};
@@ -4416,12 +4433,13 @@ const skills = {
 	zhiba: {
 		global: "zhiba_global",
 		audioname: ["re_sunben"],
-		audio: "zhiba2",
+		audioname2: {
+			pe_jun_sunce: "olzhiba",
+		},
+		audio: 2,
 		zhuSkill: true,
 		subSkill: {
 			global: {
-				audio: "zhiba2",
-				audioname: ["re_sunben"],
 				enable: "phaseUse",
 				prompt() {
 					const player = get.player();
@@ -4886,7 +4904,7 @@ const skills = {
 				return;
 			}
 			if (!_status.characterlist) {
-				game.initCharactertList();
+				game.initCharacterList();
 			}
 			_status.characterlist.randomSort();
 			for (let i = 0; i < _status.characterlist.length; i++) {
@@ -7251,6 +7269,9 @@ const skills = {
 		trigger: { player: "phaseDiscardBefore" },
 		audio: 2,
 		audioname: ["re_yuanshao"],
+		audioname2: {
+			pe_jun_yuanshao: ["xueyi_re_yuanshao1.mp3", "xueyi_re_yuanshao2.mp3"],
+		},
 		forced: true,
 		firstDo: true,
 		filter(event, player) {
@@ -7430,15 +7451,7 @@ const skills = {
 							return 1;
 						}
 						if (card.name === "sha") {
-							if (
-								!target.mayHaveShan(
-									player,
-									"use",
-									target.getCards("h", i => {
-										return i.hasGaintag("sha_notshan");
-									})
-								)
-							) {
+							if (!target.mayHaveShan(player, "use")) {
 								return;
 							}
 						} else if (!target.mayHaveShan(player)) {
@@ -7505,7 +7518,7 @@ const skills = {
 		sourceSkill: "shensu",
 		async cost(event, trigger, player) {
 			event.result = await player
-				.chooseTarget(get.prompt(event.name.slice(0, -"_cost".length)), "跳过判定阶段和摸牌阶段，视为对一名其他角色使用一张【杀】", function (card, player, target) {
+				.chooseTarget(get.prompt(event.skill), "跳过判定阶段和摸牌阶段，视为对一名其他角色使用一张【杀】", function (card, player, target) {
 					if (player == target) {
 						return false;
 					}
@@ -7518,7 +7531,7 @@ const skills = {
 					}
 					return get.effect(target, { name: "sha" }, _status.event.player);
 				})
-				.setHiddenSkill(event.name.slice(0, -"_cost".length))
+				.setHiddenSkill(event.skill)
 				.forResult();
 		},
 		async content(event, trigger, player) {
@@ -7545,7 +7558,7 @@ const skills = {
 		async cost(event, trigger, player) {
 			event.result = await player
 				.chooseCardTarget({
-					prompt: get.prompt(event.name.slice(0, -"_cost".length)),
+					prompt: get.prompt(event.skill),
 					prompt2: "弃置一张装备牌并跳过出牌阶段，视为对一名其他角色使用一张【杀】",
 					filterCard(card, player) {
 						return get.type(card) == "equip" && lib.filter.cardDiscardable(card, player);
@@ -7575,7 +7588,7 @@ const skills = {
 						}) >
 						player.hp - 1,
 				})
-				.setHiddenSkill(event.name.slice(0, -"_cost".length))
+				.setHiddenSkill(event.skill)
 				.forResult();
 		},
 		async content(event, trigger, player) {
@@ -7592,7 +7605,7 @@ const skills = {
 		async cost(event, trigger, player) {
 			const check = player.needsToDiscard() || player.isTurnedOver() || (player.hasSkill("shebian") && player.canMoveCard(true, true));
 			event.result = await player
-				.chooseTarget(get.prompt(event.name.slice(0, -"_cost".length)), "跳过弃牌阶段并将武将牌翻面，视为对一名其他角色使用一张【杀】", function (card, player, target) {
+				.chooseTarget(get.prompt(event.skill), "跳过弃牌阶段并将武将牌翻面，视为对一名其他角色使用一张【杀】", function (card, player, target) {
 					if (player == target) {
 						return false;
 					}
@@ -7605,7 +7618,7 @@ const skills = {
 					}
 					return get.effect(target, { name: "sha" }, _status.event.player, _status.event.player);
 				})
-				.setHiddenSkill(event.name.slice(0, -"_cost".length))
+				.setHiddenSkill(event.skill)
 				.forResult();
 		},
 		async content(event, trigger, player) {
@@ -8556,15 +8569,7 @@ const skills = {
 						})
 					) {
 						if (card.name === "sha") {
-							if (
-								!target.mayHaveShan(
-									player,
-									"use",
-									target.getCards("h", i => {
-										return i.hasGaintag("sha_notshan");
-									})
-								)
-							) {
+							if (!target.mayHaveShan(player, "use")) {
 								return;
 							}
 						} else if (!target.mayHaveShan(player)) {
@@ -8727,6 +8732,9 @@ const skills = {
 	huangtian: {
 		audio: "huangtian2",
 		audioname: ["zhangjiao", "re_zhangjiao"],
+		audioname2: {
+			pe_jun_zhangjiao: ["xinhuangtian2_re_zhangjiao1.mp3", "xinhuangtian2_re_zhangjiao2.mp3"],
+		},
 		global: "huangtian2",
 		zhuSkill: true,
 	},

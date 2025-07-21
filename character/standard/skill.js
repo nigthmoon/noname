@@ -201,6 +201,9 @@ const skills = {
 	hujia: {
 		audio: 2,
 		audioname: ["re_caocao"],
+		audioname2: {
+			pe_jun_caocao: "sbhujia",
+		},
 		zhuSkill: true,
 		trigger: { player: ["chooseToRespondBefore", "chooseToUseBefore"] },
 		filter(event, player) {
@@ -960,6 +963,9 @@ const skills = {
 	jijiang: {
 		audio: "jijiang1",
 		audioname: ["liushan", "re_liubei", "re_liushan", "ol_liushan"],
+		audioname2: {
+			pe_jun_liubei: "sbjijiang",
+		},
 		group: ["jijiang1"],
 		zhuSkill: true,
 		filter(event, player) {
@@ -989,6 +995,9 @@ const skills = {
 	jijiang1: {
 		audio: 2,
 		audioname: ["liushan", "re_liubei", "re_liushan", "ol_liushan"],
+		audioname2: {
+			pe_jun_liubei: "sbjijiang",
+		},
 		trigger: { player: ["useCardBegin", "respondBegin"] },
 		logTarget: "targets",
 		sourceSkill: "jijiang",
@@ -1549,6 +1558,9 @@ const skills = {
 			},
 			result: {
 				player(player) {
+					if (player.needsToDiscard(3) && !player.hasValueTarget({ name: "sha" }, false)) {
+						return -1;
+					}
 					if (player.countCards("h") >= player.hp - 1) {
 						return -1;
 					}
@@ -1792,11 +1804,11 @@ const skills = {
 				},
 			},
 			noh: true,
+			freeSha: true,
+			freeShan: true,
 			skillTagFilter(player, tag) {
-				if (tag == "noh") {
-					if (player.countCards("h") != 1) {
-						return false;
-					}
+				if (player.countCards("h") !== 1) {
+					return false;
 				}
 			},
 		},
@@ -1958,6 +1970,7 @@ const skills = {
 	wushuang: {
 		audio: 2,
 		audioname: ["re_lvbu", "shen_lvbu", "lvlingqi"],
+		audioname2: { sb_lvbu: "sbliyu_effect" },
 		forced: true,
 		locked: true,
 		group: ["wushuang1", "wushuang2"],
@@ -1965,7 +1978,11 @@ const skills = {
 	},
 	wushuang1: {
 		audio: "wushuang",
-		audioname: ["re_lvbu", "shen_lvbu", "lvlingqi", "ol_jsrg_lvbu"],
+		audioname: ["re_lvbu", "shen_lvbu", "lvlingqi"],
+		audioname2: {
+			sb_lvbu: "sbliyu_effect",
+			gz_lvlingqi: "wushuang_lvlingqi",
+		},
 		trigger: { player: "useCardToPlayered" },
 		forced: true,
 		sourceSkill: "wushuang",
@@ -1997,7 +2014,11 @@ const skills = {
 	},
 	wushuang2: {
 		audio: "wushuang",
-		audioname: ["re_lvbu", "shen_lvbu", "lvlingqi", "ol_jsrg_lvbu"],
+		audioname: ["re_lvbu", "shen_lvbu", "lvlingqi"],
+		audioname2: {
+			sb_lvbu: "sbliyu_effect",
+			gz_lvlingqi: "wushuang_lvlingqi",
+		},
 		trigger: { player: "useCardToPlayered", target: "useCardToTargeted" },
 		forced: true,
 		sourceSkill: "wushuang",
@@ -2055,7 +2076,6 @@ const skills = {
 	},
 	shenji: {
 		audio: 2,
-		audioname: ["ol_jsrg_lvbu"],
 		mod: {
 			selectTarget(card, player, range) {
 				if (range[1] == -1) {

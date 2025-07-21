@@ -1,4 +1,11 @@
 const characters = {
+	jimiaojimu: {
+		sex: "male",
+		group: "qun",
+		hp: 3,
+		skills: ["dczouyi", "dcyanxi"],
+		names: "吉|邈-吉|穆",
+	},
 	dc_zhugejun: {
 		sex: "male",
 		group: "shu",
@@ -704,7 +711,7 @@ const characters = {
 		sex: "male",
 		group: "shu",
 		hp: 3,
-		skills: ["dcshengxi", "dcshoucheng"],
+		skills: ["reshengxi", "dcshoucheng"],
 		names: "蒋|琬-费|祎",
 	},
 };

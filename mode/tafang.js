@@ -45,7 +45,7 @@ export default () => {
 			ui.placeChess = result.ui.placeChess;
 			ui.click.moveContainer = result.ui.click.moveContainer;
 			for (var i in lib.skill) {
-				if (lib.skill[i].seatRelated) {
+				if (lib.skill[i].seatRelated === true) {
 					lib.skill[i] = {};
 					if (lib.translate[i + "_info"]) {
 						lib.translate[i + "_info"] = "此模式下不可用";
@@ -770,7 +770,7 @@ export default () => {
 					} else {
 						event.mechlist = game.treasures.slice(0);
 					}
-					("step 10");
+					"step 10";
 					if (event.mechlist.length) {
 						var mech = event.mechlist.shift();
 						var info = lib.skill[mech.name + "_skill"];
@@ -793,7 +793,7 @@ export default () => {
 						}
 						event.redo();
 					}
-					("step 11");
+					"step 11";
 					delete event.xingdong;
 					delete event.mechlist;
 					if (_status.turnCount >= _status.turnTotal) {

@@ -1,4 +1,47 @@
 const characters = {
+	dc_sb_dengai: {
+		sex: "male",
+		group: "wei",
+		hp: 4,
+		skills: ["dcsbzhouxi", "dcsbshijin"],
+	},
+	x_dc_zhangqiying: {
+		sex: "female",
+		group: "qun",
+		hp: 3,
+		skills: ["x_dc_falu", "x_dc_zhenyi", "x_dc_dianhua"],
+	},
+	y_dc_zhangqiying: {
+		sex: "female",
+		group: "qun",
+		hp: 3,
+		skills: ["y_dc_falu", "y_dc_zhenyi", "y_dc_dianhua"],
+	},
+	renwan: {
+		sex: "female",
+		group: "wei",
+		hp: 3,
+		skills: ["dcjuanji", "dcrenshuang"],
+	},
+	dc_sb_jiangwei: {
+		sex: "male",
+		group: "shu",
+		hp: 2,
+		maxHp: 4,
+		skills: ["dcsbjuemou", "dcsbfuzhan"],
+	},
+	dc_sb_hulie: {
+		sex: "male",
+		group: "wei",
+		hp: 4,
+		skills: ["dcsbchuanyu", "dcsbyitou"],
+	},
+	cuilingyi: {
+		sex: "female",
+		group: "wei",
+		hp: 3,
+		skills: ["dchuashang", "dcyuzhi"],
+	},
 	dc_wuzhi: {
 		sex: "male",
 		group: "wei",
@@ -107,18 +150,6 @@ const characters = {
 		skills: ["dcshenduan", "dckegou", "dcdixian"],
 		clans: ["吴郡陆氏"],
 	},
-	two_dc_sp_machao: {
-		sex: "male",
-		group: "qun",
-		hp: 4,
-		skills: ["twodcspzhuiji", "twodcspshichou"],
-	},
-	one_dc_sp_machao: {
-		sex: "male",
-		group: "qun",
-		hp: 4,
-		skills: ["onedcspzhuiji", "onedcspshichou"],
-	},
 	sunba: {
 		sex: "male",
 		group: "wu",
@@ -164,7 +195,8 @@ const characters = {
 	wu_huangfusong: {
 		sex: "male",
 		group: "qun",
-		hp: 4,
+		hp: 1,
+		maxHp: 4,
 		skills: ["dcchaozhen", "dclianjie", "dcjiangxian"],
 		names: "皇甫|嵩",
 	},
@@ -471,12 +503,6 @@ const characters = {
 		hp: 4,
 		skills: ["xinfu_xionghuo", "xinfu_shajue"],
 	},
-	zhangqiying: {
-		sex: "female",
-		group: "qun",
-		hp: 3,
-		skills: ["xinfu_falu", "xinfu_dianhua", "xinfu_zhenyi"],
-	},
 	dc_shixie: {
 		sex: "male",
 		group: "qun",
@@ -488,7 +514,7 @@ const characters = {
 		sex: "male",
 		group: "qun",
 		hp: 4,
-		skills: ["zhuiji", "dc_olshichou"],
+		skills: ["twodcspzhuiji", "twodcspshichou"],
 		dieAudios: ["sp_machao"],
 	},
 	old_huangfusong: {

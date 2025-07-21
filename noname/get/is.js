@@ -50,6 +50,10 @@ export class Is {
 		if (subtype == "equip4") {
 			return true;
 		} else if (subtype == "equip6") {
+			const subtypes = get.subtypes(card, player);
+			if (subtypes.includes("equip4")) {
+				return true;
+			}
 			const info = get.info(card, player),
 				distance = info.distance;
 			if (!distance) {
@@ -72,6 +76,10 @@ export class Is {
 		if (subtype == "equip3") {
 			return true;
 		} else if (subtype == "equip6") {
+			const subtypes = get.subtypes(card, player);
+			if (subtypes.includes("equip3")) {
+				return true;
+			}
 			const info = get.info(card, player),
 				distance = info.distance;
 			if (!distance) {
@@ -205,8 +213,15 @@ export class Is {
 		if (!card) {
 			return false;
 		}
+
 		const gaintag = card.gaintag;
-		return Array.isArray(gaintag) && gaintag.some(tag => tag.startsWith("visible_"));
+		// TODO: 添加通用前缀处理系统
+		return Array.isArray(gaintag) && gaintag.some(tag => {
+			if (tag.startsWith("eternal_")) {
+				return tag.slice(8).startsWith("visible_");
+			}
+			return tag.startsWith("visible_");
+		});
 	}
 	/**
 	 * 是否是虚拟牌

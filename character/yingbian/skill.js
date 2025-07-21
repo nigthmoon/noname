@@ -1240,6 +1240,7 @@ const skills = {
 		},
 		subSkill: {
 			0: {
+				audio: "ybzhuiji",
 				trigger: { player: "phaseUseEnd" },
 				forced: true,
 				charlotte: true,
@@ -1248,6 +1249,7 @@ const skills = {
 				},
 			},
 			1: {
+				audio: "ybzhuiji",
 				trigger: { player: "phaseUseEnd" },
 				forced: true,
 				charlotte: true,
@@ -2195,7 +2197,7 @@ const skills = {
 			var card = get.cards()[0];
 			event.card = card;
 			player.showCards(card);
-			if (!player.hasUseTarget(card)) {
+			if ((!get.info(card).notarget || !lib.filter.cardEnabled(card, player)) && !player.hasUseTarget(card)) {
 				card.fix();
 				ui.cardPile.insertBefore(card, ui.cardPile.firstChild);
 				game.updateRoundNumber();
@@ -2243,7 +2245,7 @@ const skills = {
 		trigger: { player: ["useCard", "respond"] },
 		hasHand(event) {
 			var evts = event.player.getHistory("lose", function (evt) {
-				return evt.getParent() == event;
+				return (evt.relatedEvent || evt.getParent()) == event;
 			});
 			return evts && evts.length == 1 && evts[0].hs.length > 0;
 		},
@@ -3104,7 +3106,7 @@ const skills = {
 			}
 			return (
 				player.getHistory("lose", function (evt) {
-					if (evt.getParent() != event) {
+					if ((evt.relatedEvent || evt.getParent()) != event) {
 						return false;
 					}
 					for (var i in evt.gaintag_map) {
@@ -3396,7 +3398,11 @@ const skills = {
 			return player != event.player && event.num < event.player.hp;
 		},
 		check(event, player) {
-			if (event.player.hasSkillTag("nodamage")) {
+			if (event.player.hasSkillTag("nodamage", null, {
+				source: player,
+				card: event.card,
+				natures: get.natureList(event),
+			})) {
 				return false;
 			}
 			let tj = player.countCards("hs", function (card) {

@@ -80,7 +80,7 @@ game.import("card", function () {
 					}
 					if (target.isDying() || event.getParent(2).type == "dying") {
 						target.recover();
-						if (_status.currentPhase == target) {
+						if (_status.currentPhase == target && typeof target.getStat().card.jiu == "number") {
 							target.getStat().card.jiu--;
 						}
 					} else {
@@ -231,13 +231,7 @@ game.import("card", function () {
 									) ||
 									//(Math.min(target.getCardUsable("sha"), target.mayHaveSha(player, "use", item, "count")) === 1 && (
 									target.needsToDiscard() > Math.max(0, 3 - target.hp) ||
-									!effs[i].target.mayHaveShan(
-										player,
-										"use",
-										effs[i].target.getCards(i => {
-											return i.hasGaintag("sha_notshan");
-										})
-									)
+									!effs[i].target.mayHaveShan(player, "use")
 									//))
 								) {
 									delete target._jiu_temp;
@@ -528,6 +522,7 @@ game.import("card", function () {
 									? 3.2
 									: 1;
 							}
+							return 0.6;
 						},
 						value: 4,
 					},

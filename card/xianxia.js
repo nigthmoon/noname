@@ -35,7 +35,7 @@ game.import("card", function () {
 				},
 			},
 			lx_huoshaolianying: {
-				audio: true,
+				audio: "huoshaolianying",
 				fullskin: true,
 				type: "trick",
 				cardnature: "fire",
@@ -75,6 +75,7 @@ game.import("card", function () {
 					game.addVideo("cardDialog", null, [get.translation(target) + "展示的手牌", get.cardsInfo(result.cards), event.videoId]);
 					game.log(target, "展示了", result.cards);
 					game.addCardKnower(result.cards, "everyone");
+					await game.delay();
 					const result2 = await player
 						.chooseToDiscard({ suit: get.suit(result.cards[0]) }, function (card) {
 							var evt = _status.event.getParent();
@@ -85,7 +86,9 @@ game.import("card", function () {
 						})
 						.set("prompt", false)
 						.forResult();
-					await game.delay();
+					event.dialog.close();
+					game.addVideo("cardDialog", null, event.videoId);
+					game.broadcast("closeDialog", event.videoId);
 					if (result2.bool) {
 						let discards = result.cards.slice(0).filter(card => lib.filter.canBeDiscarded(card, player, target, event));
 						if (discards.length) {
@@ -98,9 +101,6 @@ game.import("card", function () {
 					} else {
 						target.addTempSkill("huogong2");
 					}
-					event.dialog.close();
-					game.addVideo("cardDialog", null, event.videoId);
-					game.broadcast("closeDialog", event.videoId);
 				},
 				ai: {
 					basic: {
@@ -286,12 +286,13 @@ game.import("card", function () {
 				type: "equip",
 				subtype: "equip1",
 				distance: { attackFrom: -1 },
-				ai: {
-					basic: {
-						equipValue: 2,
-					},
-				},
+				ai: { basic: { equipValue: 2 } },
 				skills: ["ty_feilongduofeng_skill"],
+				onLose() {
+					if (player.storage.counttrigger?.ty_feilongduofeng_skill > 0) {
+						delete player.storage.counttrigger.ty_feilongduofeng_skill;
+					}
+				},
 			},
 			shangfangbaojian: {
 				fullskin: true,
@@ -418,6 +419,63 @@ game.import("card", function () {
 					tag: {
 						damage: 1,
 						draw: 2,
+					},
+				},
+			},
+			dajunyajing: {
+				audio: true,
+				fullskin: true,
+				type: "trick",
+				enable: true,
+				filterTarget: true,
+				async content(event, trigger, player) {
+					const target = event.target;
+					const targets = game
+						.filterPlayer(current => {
+							return current != target;
+						})
+						.sortBySeat(_status.currentPhase);
+					for (const current of targets) {
+						if (!target.isIn()) {
+							return;
+						}
+						if (!current.isIn() || !current.countCards("hes") || current.hasSkill("diaohulishan")) {
+							continue;
+						}
+						const next = current.chooseToUse();
+						next.set("openskilldialog", `大军压境：是否将一张牌当作【杀】对${get.translation(target)}使用？`);
+						next.set("norestore", true);
+						next.set("_backupevent", `dajunyajing_backup`);
+						next.set("custom", {
+							add: {},
+							replace: { window() {} },
+						});
+						next.backup(`dajunyajing_backup`);
+						next.set("targetRequired", true);
+						next.set("complexSelect", true);
+						next.set("filterTarget", function (card, player, target) {
+							const { sourcex } = get.event();
+							if (target != sourcex && !ui.selected.targets.includes(sourcex)) {
+								return false;
+							}
+							return lib.filter.targetEnabled.apply(this, arguments);
+						});
+						next.set("sourcex", target);
+						next.set("addCount", false);
+						await next;
+					}
+				},
+				ai: {
+					order: 6,
+					value: 12,
+					useful: 10,
+					tag: {
+						damage: 1,
+					},
+					result: {
+						target(player, target) {
+							return -1 * (game.countPlayer() - 1);
+						},
 					},
 				},
 			},
@@ -591,11 +649,9 @@ game.import("card", function () {
 					if (event.type != "discard" || player != _status.currentPhase) {
 						return false;
 					}
-					if (player.getHistory("lose", evt => evt.type == "discard").indexOf(event) != 0) {
-						return false;
-					}
-					var evt = event.getl(player);
-					return evt?.cards2?.length > 1;
+					return player.getHistory("lose", evt => {
+						return evt.type == "discard" && evt?.getl(player)?.cards2?.length > 1;
+					}).indexOf(event) == 0;
 				},
 				async cost(event, trigger, player) {
 					event.result = await player
@@ -688,6 +744,20 @@ game.import("card", function () {
 					},
 				},
 			},
+			dajunyajing_backup: {
+				filterCard(card) {
+					return get.itemtype(card) == "card";
+				},
+				viewAs: {
+					name: "sha",
+				},
+				selectCard: 1,
+				position: "hes",
+				ai1(card) {
+					return 7 - get.value(card);
+				},
+				log: false,
+			},
 		},
 		translate: {
 			tiejili: "铁蒺藜骨朵",
@@ -717,6 +787,8 @@ game.import("card", function () {
 			mengchong_skill_info: "锁定技，当你使用牌结算结束后，你选择与其他角色互相计算距离+1或-1直到你的下个回合开始（至多+2/-2）。",
 			yidugongdu: "以毒攻毒",
 			yidugongdu_info: "出牌阶段，对一名已受伤的角色使用。你观看其所有手牌，然后若你与其手牌中均有【毒】，弃置其中一张【毒】并与其各摸两张牌，否则你与其依次受到1点无来源伤害。",
+			dajunyajing: "大军压境",
+			dajunyajing_info: "出牌阶段，对一名角色使用。其以外的所有角色依次选择是否将一张牌当无距离限制的【杀】对其使用。",
 		},
 		list: [
 			["diamond", 6, "suibozhuliu"],
